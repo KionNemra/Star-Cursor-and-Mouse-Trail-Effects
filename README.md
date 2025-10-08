@@ -13,3 +13,6 @@ This is what the star trail looks like in action:
 Here is both effects in use:
 
 ![til](./gifs/Both.gif)
+
+
+The main.js file shows how to use both of the effects. They each act independently on their own canvas. To use the effects simply create a similar main.js file and include the effect source code in your project and include them on the pages you want them to appear on. For easy portability the styling is done within the effect classes but this can be moved into a css file for more control over the look.
