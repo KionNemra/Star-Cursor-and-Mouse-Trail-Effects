@@ -13,7 +13,7 @@ function animateAll() {
   requestAnimationFrame(animateAll);
 }
 animateAll();
-/*
+
 //Invoking cursor stars
 const cursorCanvas2 = document.createElement("canvas");
 cursorCanvas2.id = "curs_canv2";
@@ -24,4 +24,4 @@ cursor.addStar(new Star(window.innerWidth / 2, window.innerHeight / 2, 1, 2, 1, 
 cursor.addStar(new Star(window.innerWidth / 2, window.innerHeight / 2, 0.5, 1, 0.5, 0.05, 10));
 cursor.addStar(new Star(window.innerWidth / 2, window.innerHeight / 2, 0.5, 1, 0.5, 0.1, -5, 20));
 
-cursor.start();*/
+cursor.start();
