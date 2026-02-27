@@ -15,9 +15,23 @@ class StarCursor {
     // Mouse position
     this.mouseX = this.canvas.width / 2;
     this.mouseY = this.canvas.height / 2;
+
+    // Mouse stop detection
+    this.mouseStopTimeout = null;
+    this.mouseStopped = false;
+    this.opacity = 0;
+    this.stopDelay = options.stopDelay || 100; // ms before considering mouse "stopped"
+    this.fadeInSpeed = options.fadeInSpeed || 0.08;
+    this.fadeOutSpeed = options.fadeOutSpeed || 0.15;
+
     window.addEventListener("mousemove", e => {
       this.mouseX = e.clientX;
       this.mouseY = e.clientY;
+      this.mouseStopped = false;
+      clearTimeout(this.mouseStopTimeout);
+      this.mouseStopTimeout = setTimeout(() => {
+        this.mouseStopped = true;
+      }, this.stopDelay);
     });
 
     // Options
@@ -48,12 +62,24 @@ class StarCursor {
 
   start() {
     const animate = () => {
-      
+
       this.ctx.clearRect(0,0,this.canvas.width,this.canvas.height);
-      
-      // Update & draw all stars
-      this.stars.forEach(star => star.update(this.mouseX, this.mouseY));
-      this.stars.forEach(star => star.draw(this.ctx, this.tempCtx, this.tempCanvas, this.starColor, this.glowColor));
+
+      // Fade in when stopped, fade out when moving
+      if (this.mouseStopped) {
+        this.opacity = Math.min(1, this.opacity + this.fadeInSpeed);
+      } else {
+        this.opacity = Math.max(0, this.opacity - this.fadeOutSpeed);
+      }
+
+      // Update & draw all stars (only if visible)
+      if (this.opacity > 0) {
+        this.stars.forEach(star => star.update(this.mouseX, this.mouseY));
+        this.ctx.save();
+        this.ctx.globalAlpha = this.opacity;
+        this.stars.forEach(star => star.draw(this.ctx, this.tempCtx, this.tempCanvas, this.starColor, this.glowColor));
+        this.ctx.restore();
+      }
 
       requestAnimationFrame(animate);
     };
