@@ -149,6 +149,7 @@
     this._step = 0;
     this._timer = null;
     this._styleEl = null;
+    this._blobCursorUrl = null;
   }
 
   CursorManager.prototype = {
@@ -169,6 +170,13 @@
 
     _escapeCssUrl: function (url) {
       return String(url).replace(/'/g, "\\'");
+    },
+
+    _revokeBlobCursorUrl: function () {
+      if (this._blobCursorUrl && typeof URL !== "undefined" && URL.revokeObjectURL) {
+        URL.revokeObjectURL(this._blobCursorUrl);
+      }
+      this._blobCursorUrl = null;
     },
 
     /** Fetch binary data with XHR fallback (XHR works on file:// in Firefox). */
@@ -193,6 +201,7 @@
     load: function (url) {
       this.stop();
       this._frames = [];
+      this._revokeBlobCursorUrl();
       this._ensureStyleEl();
       url = this._normalizeUrl(url);
       var self = this;
@@ -205,9 +214,12 @@
           if (isCur) {
             var frame = curToFrame(buf);
             self._frames = [frame];
-            self._setCursorFromFileAndData(url, frame.url, frame.hotX, frame.hotY);
+            if (typeof URL !== "undefined" && URL.createObjectURL && typeof Blob !== "undefined") {
+              self._blobCursorUrl = URL.createObjectURL(new Blob([buf], { type: "image/x-icon" }));
+            }
+            self._setCursorFromFileAndData(self._blobCursorUrl || url, frame.url, frame.hotX, frame.hotY);
             console.log("CursorManager: .cur parsed, dataURL length=" + frame.url.length +
-              ", hotspot=(" + frame.hotX + "," + frame.hotY + ")");
+              ", hotspot=(" + frame.hotX + "," + frame.hotY + ")" + ", source=" + (self._blobCursorUrl ? "blob" : "url"));
           } else {
             var ani = parseANI(buf);
             self._displayRate = ani.displayRate;
@@ -275,6 +287,7 @@
     destroy: function () {
       this.stop();
       this._frames = [];
+      this._revokeBlobCursorUrl();
       document.documentElement.style.removeProperty("cursor");
       if (document.body) document.body.style.removeProperty("cursor");
       if (this._styleEl) {
