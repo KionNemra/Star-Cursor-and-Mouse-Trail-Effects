@@ -197,14 +197,14 @@
 
       return this._fetchBinary(url)
         .then(function (buf) {
+          console.log("CursorManager: fetched " + buf.byteLength + " bytes");
           if (isCur) {
-            // Parse .cur → PNG data URL and apply as static cursor
             var frame = curToFrame(buf);
             self._frames = [frame];
-            self._applyFrame(frame);
-            console.log("CursorManager: .cur applied (" + frame.hotX + "," + frame.hotY + ")");
+            self._setCursor(frame.url, frame.hotX, frame.hotY);
+            console.log("CursorManager: .cur parsed, dataURL length=" + frame.url.length +
+              ", hotspot=(" + frame.hotX + "," + frame.hotY + ")");
           } else {
-            // .ani: parse RIFF, convert frames, animate
             var ani = parseANI(buf);
             self._displayRate = ani.displayRate;
             self._rates = ani.rates;
@@ -224,19 +224,22 @@
         });
     },
 
-    /** Apply a single parsed frame as the cursor (for .cur files). */
-    _applyFrame: function (f) {
-      this._styleEl.textContent =
-        "html, body, body * { cursor: url(" + f.url + ") " + f.hotX + " " + f.hotY + ", auto !important; }";
+    /** Set cursor on the page using multiple methods for maximum compatibility. */
+    _setCursor: function (dataUrl, hotX, hotY) {
+      var val = "url('" + dataUrl + "') " + hotX + " " + hotY + ", auto";
+      // Method 1: inline style on html + body (highest priority)
+      document.documentElement.style.setProperty("cursor", val, "important");
+      if (document.body) document.body.style.setProperty("cursor", val, "important");
+      // Method 2: <style> element for all descendants
+      this._styleEl.textContent = "* { cursor: url('" + dataUrl + "') " + hotX + " " + hotY + ", auto !important; }";
+      console.log("CursorManager: CSS cursor set, value length=" + val.length);
     },
 
-    /** Apply a parsed frame (data-URL PNG with explicit hotspot). */
+    /** Apply a parsed frame (data-URL PNG with explicit hotspot) — for .ani animation. */
     _apply: function (step) {
       var idx = this._seq ? this._seq[step] : step;
       var f = this._frames[idx];
-      if (f)
-        this._styleEl.textContent =
-          "html, body, body * { cursor: url(" + f.url + ") " + f.hotX + " " + f.hotY + ", auto !important; }";
+      if (f) this._setCursor(f.url, f.hotX, f.hotY);
     },
 
     _animate: function () {
@@ -259,6 +262,8 @@
     destroy: function () {
       this.stop();
       this._frames = [];
+      document.documentElement.style.removeProperty("cursor");
+      if (document.body) document.body.style.removeProperty("cursor");
       if (this._styleEl) {
         this._styleEl.textContent = "";
         if (this._styleEl.parentNode)
