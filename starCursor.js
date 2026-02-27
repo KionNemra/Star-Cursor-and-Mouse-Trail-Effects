@@ -1,13 +1,23 @@
 // starCursor.js
+
+// Pre-allocated shape data (avoids per-frame allocations)
+const GLOW_OFFSETS = [{x:-2, y:0}, {x:2, y:0}, {x:0, y:-2}, {x:0, y:2}];
+const STAR_POINTS = [
+  {x: 0, y: -4}, {x: 1, y: -1}, {x: 4, y: 0}, {x: 1, y: 1},
+  {x: 0, y: 4}, {x: -1, y: 1}, {x: -4, y: 0}, {x: -1, y: -1},
+];
+
 class StarCursor {
   constructor(canvas, options = {}) {
-    // Allow passing either canvas element or ID
     this.canvas = typeof canvas === 'string' ? document.getElementById(canvas) : canvas;
     this.ctx = this.canvas.getContext('2d');
 
-    // Temp canvas for glow effect
+    // Small fixed-size temp canvas for glow (NOT full-screen)
     this.tempCanvas = document.createElement("canvas");
+    this.tempCanvas.width = 64;
+    this.tempCanvas.height = 64;
     this.tempCtx = this.tempCanvas.getContext("2d");
+
     this.setupCanvas();
     this.resizeCanvas();
     window.addEventListener("resize", () => this.resizeCanvas());
@@ -20,7 +30,7 @@ class StarCursor {
     this.mouseStopTimeout = null;
     this.mouseStopped = false;
     this.opacity = 0;
-    this.stopDelay = options.stopDelay || 100; // ms before considering mouse "stopped"
+    this.stopDelay = options.stopDelay || 100;
     this.fadeInSpeed = options.fadeInSpeed || 0.08;
     this.fadeOutSpeed = options.fadeOutSpeed || 0.15;
 
@@ -34,21 +44,17 @@ class StarCursor {
       }, this.stopDelay);
     });
 
-    // Options
     this.glowColor = options.glowColor || "#e8c01eff";
     this.starColor = options.starColor || "#c8b869";
-
-    // Array of stars
     this.stars = [];
   }
 
   resizeCanvas() {
-    this.canvas.width = this.tempCanvas.width = window.innerWidth;
-    this.canvas.height = this.tempCanvas.height = window.innerHeight;
+    this.canvas.width = window.innerWidth;
+    this.canvas.height = window.innerHeight;
   }
- 
-  setupCanvas(){
-    // CSS only controls position/size visually:
+
+  setupCanvas() {
     this.canvas.style.position = "fixed";
     this.canvas.style.width = "100%";
     this.canvas.style.height = "100%";
@@ -60,30 +66,27 @@ class StarCursor {
     this.stars.push(star);
   }
 
-  start() {
-    const animate = () => {
+  // Called externally from a shared animation loop (no own rAF)
+  update(timestamp) {
+    this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
-      this.ctx.clearRect(0,0,this.canvas.width,this.canvas.height);
+    if (this.mouseStopped) {
+      this.opacity = Math.min(1, this.opacity + this.fadeInSpeed);
+    } else {
+      this.opacity = Math.max(0, this.opacity - this.fadeOutSpeed);
+    }
 
-      // Fade in when stopped, fade out when moving
-      if (this.mouseStopped) {
-        this.opacity = Math.min(1, this.opacity + this.fadeInSpeed);
-      } else {
-        this.opacity = Math.max(0, this.opacity - this.fadeOutSpeed);
+    if (this.opacity > 0) {
+      for (let i = 0; i < this.stars.length; i++) {
+        this.stars[i].update(this.mouseX, this.mouseY, timestamp);
       }
-
-      // Update & draw all stars (only if visible)
-      if (this.opacity > 0) {
-        this.stars.forEach(star => star.update(this.mouseX, this.mouseY));
-        this.ctx.save();
-        this.ctx.globalAlpha = this.opacity;
-        this.stars.forEach(star => star.draw(this.ctx, this.tempCtx, this.tempCanvas, this.starColor, this.glowColor));
-        this.ctx.restore();
+      this.ctx.save();
+      this.ctx.globalAlpha = this.opacity;
+      for (let i = 0; i < this.stars.length; i++) {
+        this.stars[i].draw(this.ctx, this.tempCtx, this.tempCanvas, this.starColor, this.glowColor);
       }
-
-      requestAnimationFrame(animate);
-    };
-    requestAnimationFrame(animate);
+      this.ctx.restore();
+    }
   }
 }
 
@@ -100,65 +103,50 @@ class Star {
     this.offsetY = offsetY;
     this.growing = true;
     this.growInterval = growInterval;
-    this.lastGrowTime = Date.now();
+    this.lastGrowTime = 0;
   }
 
-  update(targetX, targetY) {
+  update(targetX, targetY, timestamp) {
+    this.x = targetX + this.offsetX;
+    this.y = targetY + this.offsetY;
 
-    // Move toward cursor
-    this.x = targetX + this.offsetX ;
-    this.y = targetY + this.offsetY ;
-
-    // Twinkle/grow logic
-    const now = Date.now();
-    if (now - this.lastGrowTime >= this.growInterval) {
+    if (timestamp - this.lastGrowTime >= this.growInterval) {
       this.size += this.growing ? this.growFactor : -this.growFactor;
       if (this.size >= this.maxSize) this.growing = false;
       if (this.size <= this.minSize) this.growing = true;
-      this.lastGrowTime = now;
+      this.lastGrowTime = timestamp;
     }
   }
 
-  draw(ctx, tempCtx, tempCanvas, color = "#c8b869", glowColor = "#e8c01eff") {
-        
-    // Draw glowing circles to temp canvas
-    const circles = [
-      {x:-2, y:0}, {x:2,y:0}, {x:0,y:-2}, {x:0,y:2}
-    ];
-    tempCtx.clearRect(0,0,tempCanvas.width,tempCanvas.height);
-    circles.forEach(c => {
+  draw(ctx, tempCtx, tempCanvas, color, glowColor) {
+    const s = this.size;
+    const cx = tempCanvas.width / 2;
+    const cy = tempCanvas.height / 2;
+
+    // Draw glow on small local temp canvas (64x64 instead of full-screen)
+    tempCtx.clearRect(0, 0, tempCanvas.width, tempCanvas.height);
+    for (let i = 0; i < GLOW_OFFSETS.length; i++) {
+      const c = GLOW_OFFSETS[i];
       tempCtx.beginPath();
-      tempCtx.arc(this.x + c.x*this.size, this.y + c.y*this.size, this.size * 3, 0, Math.PI*2);
+      tempCtx.arc(cx + c.x * s, cy + c.y * s, s * 3, 0, Math.PI * 2);
       tempCtx.fillStyle = color;
       tempCtx.fill();
-    });
+    }
 
+    // Blit small glow canvas to main canvas at star position
     ctx.save();
     ctx.globalAlpha = 0.1;
-    ctx.drawImage(tempCanvas,0,0);
+    ctx.drawImage(tempCanvas, this.x - cx, this.y - cy);
     ctx.restore();
-    ctx.save(); 
-    // Draw filled star
-    const points = [
-      {x: 0, y: -4},
-      {x: 1, y: -1},
-      {x: 4, y: 0},
-      {x: 1, y: 1},
-      {x: 0, y: 4},
-      {x: -1, y: 1},
-      {x: -4, y: 0},
-      {x: -1, y: -1},
-    ];
 
+    // Draw star shape
     ctx.beginPath();
-    ctx.moveTo(this.x + points[0].x * this.size, this.y + points[0].y * this.size);
-    for (let i = 1; i < points.length; i++) {
-      ctx.lineTo(this.x + points[i].x * this.size, this.y + points[i].y * this.size);
+    ctx.moveTo(this.x + STAR_POINTS[0].x * s, this.y + STAR_POINTS[0].y * s);
+    for (let i = 1; i < STAR_POINTS.length; i++) {
+      ctx.lineTo(this.x + STAR_POINTS[i].x * s, this.y + STAR_POINTS[i].y * s);
     }
     ctx.closePath();
     ctx.fillStyle = color;
     ctx.fill();
-    ctx.restore();
-    
   }
 }
