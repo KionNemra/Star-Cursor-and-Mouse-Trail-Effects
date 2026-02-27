@@ -16,6 +16,14 @@ class MouseTrail {
     this.minSize = options.minSize || 0.3;
     this.maxSize = options.maxSize || 1.5;
     this.color = options.color || "#c8b869";
+
+    // Rainbow mode
+    this.colorMode = options.colorMode || "fixed";
+    this.rainbowSpeed = options.rainbowSpeed || 3;
+    this.rainbowSaturation = options.rainbowSaturation || 100;
+    this.rainbowLightness = options.rainbowLightness || 65;
+    this._rainbowHue = 0;
+
     this.setupCanvas();
     this.resizeCanvas();
     window.addEventListener('resize', () => this.resizeCanvas());
@@ -47,14 +55,40 @@ class MouseTrail {
           birthTime: now,
           size: 1,
           growing: Math.random() < 0.5,
-          vy: this.initialVy
+          vx: 0,
+          vy: this.initialVy,
+          hue: this._rainbowHue
         });
       }
+      this._rainbowHue = (this._rainbowHue + this.rainbowSpeed) % 360;
       this.lastX = x;
       this.lastY = y;
 
       if (this.trail.length > this.maxSquares)
         this.trail.splice(0, this.trail.length - this.maxSquares);
+    }
+  }
+
+  addBurst(x, y, count) {
+    const now = performance.now();
+    for (let i = 0; i < count; i++) {
+      const angle = (i / count) * Math.PI * 2 + (Math.random() - 0.5) * 0.5;
+      const speed = 1.5 + Math.random() * 3;
+      this.trail.push({
+        x: x + (Math.random() - 0.5) * 10,
+        y: y + (Math.random() - 0.5) * 10,
+        birthTime: now,
+        size: 0.8 + Math.random() * 0.7,
+        growing: Math.random() < 0.5,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        hue: this.colorMode === "rainbow"
+          ? (this._rainbowHue + (i / count) * 360) % 360
+          : 0
+      });
+    }
+    if (this.colorMode === "rainbow") {
+      this._rainbowHue = (this._rainbowHue + 60) % 360;
     }
   }
 
@@ -70,10 +104,13 @@ class MouseTrail {
     this.trail.length = writeIdx;
 
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-    this.ctx.fillStyle = this.color;
+
+    const isRainbow = this.colorMode === "rainbow";
+    if (!isRainbow) this.ctx.fillStyle = this.color;
 
     for (let i = 0; i < this.trail.length; i++) {
       const el = this.trail[i];
+      el.x += el.vx;
       el.y += el.vy;
 
       if (el.growing) {
@@ -86,6 +123,10 @@ class MouseTrail {
 
       const alpha = Math.max(0, 1 - (timestamp - el.birthTime) / this.lifetime);
       this.ctx.globalAlpha = alpha;
+
+      if (isRainbow) {
+        this.ctx.fillStyle = "hsl(" + el.hue + "," + this.rainbowSaturation + "%," + this.rainbowLightness + "%)";
+      }
 
       this.ctx.beginPath();
       this.ctx.moveTo(el.x + this.shape[0].x * el.size, el.y + this.shape[0].y * el.size);
