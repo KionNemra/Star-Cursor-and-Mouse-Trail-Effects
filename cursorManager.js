@@ -284,17 +284,22 @@
      */
     _setCursor: function (frame, curFileUrl) {
       var parts = [];
-      // 1) Native .cur URL — works in all browsers, Firefox included
-      if (curFileUrl) parts.push("url('" + this._escapeCssUrl(curFileUrl) + "')");
-      // 2) .cur blob URL for .ani frames (native cursor data, Firefox friendly)
-      if (frame.curBlobUrl) parts.push("url('" + this._escapeCssUrl(frame.curBlobUrl) + "')");
+      var isFirefoxCurFile = this._isFirefox && !!curFileUrl;
+      var isFirefoxAniFrame = this._isFirefox && !curFileUrl;
 
-      // Firefox frequently refuses PNG cursor entries once native CUR sources exist.
-      // Keep Firefox on native CUR/CUR-blob only to avoid full-chain cursor fallback failures.
-      if (!this._isFirefox || parts.length === 0) {
-        // 3) PNG blob URL (Chrome/Safari fast path)
+      // 1) Direct .cur file URL for static cursor files.
+      if (curFileUrl) parts.push("url('" + this._escapeCssUrl(curFileUrl) + "')");
+
+      // 2) .cur blob URL generated from .ani frame data.
+      // In Firefox, CUR blob entries for .ani frames can fail and force a jump to auto,
+      // so we omit them and use PNG entries for animated frames there.
+      if (frame.curBlobUrl && !isFirefoxAniFrame)
+        parts.push("url('" + this._escapeCssUrl(frame.curBlobUrl) + "')");
+
+      // 3) PNG fallbacks.
+      // For Firefox direct .cur files, keep chain native-only (avoid mixed-list failure).
+      if (!isFirefoxCurFile) {
         if (frame.blobUrl) parts.push("url('" + this._escapeCssUrl(frame.blobUrl) + "') " + frame.hotX + " " + frame.hotY);
-        // 4) PNG data URL (universal last resort)
         parts.push("url('" + this._escapeCssUrl(frame.url) + "') " + frame.hotX + " " + frame.hotY);
       }
 
