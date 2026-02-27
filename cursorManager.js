@@ -255,9 +255,9 @@
     },
 
     _setCursorFromFileAndData: function (sourceUrl, dataUrl, hotX, hotY) {
-      var sourceVal = "url('" + this._escapeCssUrl(sourceUrl) + "')";
       var dataVal = "url('" + this._escapeCssUrl(dataUrl) + "') " + hotX + " " + hotY;
-      this._setCursorValue(sourceVal + ", " + dataVal + ", auto");
+      var sourceVal = "url('" + this._escapeCssUrl(sourceUrl) + "') " + hotX + " " + hotY;
+      this._setCursorValue(dataVal + ", " + sourceVal + ", auto");
     },
 
     /** Apply a parsed frame (data-URL PNG with explicit hotspot) — for .ani animation. */
