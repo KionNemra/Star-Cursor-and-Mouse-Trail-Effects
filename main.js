@@ -42,6 +42,13 @@ var cursor = new StarCursor('curs_canv2', {
 
 cursor.generateStars(config.cursorStarCount);
 
+// --- Custom cursor (.cur / .ani) ---
+if (config.cursor) {
+  var cursorMgr = new CursorManager();
+  cursorMgr.load(config.cursor);
+  window.StarEffects.cursorManager = cursorMgr;
+}
+
 // --- Single shared animation loop ---
 function animate(timestamp) {
   trail.update(timestamp);

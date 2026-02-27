@@ -4,12 +4,12 @@
 // Basic usage - set before loading scripts:
 //   window.StarEffectsConfig = { colorMode: "rainbow", clickBurst: true };
 //
-// Profile usage (future: associate profiles with cursor files):
+// Profile usage (associate profiles with cursor files):
 //   window.StarEffectsConfig = {
 //     activeProfile: "neon",
 //     profiles: {
-//       neon:  { colorMode: "rainbow", clickBurst: true },
-//       ice:   { colorMode: "fixed", color: "#88ccff", glowColor: "#aaddffee" },
+//       neon:  { colorMode: "rainbow", clickBurst: true, cursor: "cursor/cyan.ani" },
+//       ice:   { colorMode: "fixed", color: "#88ccff", cursor: "cursor/white.cur" },
 //     }
 //   };
 
@@ -34,6 +34,9 @@
     // --- Click burst ---
     clickBurst: false,         // whether clicking spawns a burst of particles
     clickBurstCount: 12,       // particles per click burst
+
+    // --- Custom cursor ---
+    cursor: null,              // path to .cur or .ani file, null = browser default
   };
 
   var userConfig = window.StarEffectsConfig || {};
@@ -80,8 +83,8 @@
       this.profiles[name] = assign({}, DEFAULTS, config);
     },
 
-    // Future: cursor file → profile mapping
-    // cursorMap: { "dragon.ani": "fire", "ice.cur": "ice" }
+    /** Reference to active CursorManager instance (set by main.js). */
+    cursorManager: null,
   };
 
   // --- helpers ---
