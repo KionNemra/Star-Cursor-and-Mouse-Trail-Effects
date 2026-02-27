@@ -185,6 +185,10 @@
       return String(url).replace(/'/g, "\\'");
     },
 
+    _setDirectCurUrl: function (url) {
+      this._setCursorValue("url('" + this._escapeCssUrl(url) + "'), auto");
+    },
+
     _revokeBlobUrls: function () {
       var canRevoke = typeof URL !== "undefined" && URL.revokeObjectURL;
       if (canRevoke) {
@@ -222,7 +226,13 @@
       url = this._normalizeUrl(url);
       var self = this;
       var isCur = url.toLowerCase().endsWith(".cur");
+      var isAni = url.toLowerCase().endsWith(".ani");
+      var fallbackCurUrl = isAni ? url.replace(/\.ani$/i, ".cur") : null;
       console.log("CursorManager: loading " + url);
+
+      // For static .cur, set native URL immediately so Firefox still gets a cursor
+      // even if binary fetch/parsing is blocked (e.g. restrictive file:// policies).
+      if (isCur) this._setDirectCurUrl(url);
 
       return this._fetchBinary(url)
         .then(function (buf) {
@@ -260,6 +270,10 @@
         })
         .catch(function (e) {
           console.warn("CursorManager: failed to load " + url, e);
+          if (isAni && self._isFirefox && fallbackCurUrl) {
+            console.warn("CursorManager: Firefox ANI load failed, trying static CUR fallback " + fallbackCurUrl);
+            self._setDirectCurUrl(fallbackCurUrl);
+          }
           if (location.protocol === "file:")
             console.warn("CursorManager: on file:// protocol, try: python -m http.server");
         });
