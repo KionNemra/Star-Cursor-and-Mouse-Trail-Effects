@@ -46,6 +46,13 @@ class StarCursor {
 
     this.glowColor = options.glowColor || "#e8c01eff";
     this.starColor = options.starColor || "#c8b869";
+
+    // Rainbow mode
+    this.colorMode = options.colorMode || "fixed";
+    this.rainbowSpeed = options.rainbowSpeed || 3;
+    this.rainbowSaturation = options.rainbowSaturation || 100;
+    this.rainbowLightness = options.rainbowLightness || 65;
+
     this.stars = [];
   }
 
@@ -66,6 +73,34 @@ class StarCursor {
     this.stars.push(star);
   }
 
+  /** Auto-generate N stars with varied positions and animation params. */
+  generateStars(count) {
+    this.stars = [];
+    var cx = window.innerWidth / 2;
+    var cy = window.innerHeight / 2;
+
+    // For default count of 3, use the original hand-tuned layout
+    if (count === 3) {
+      this.addStar(new Star(cx, cy, 1, 2, 1, 0.3, -10, 0, 150));
+      this.addStar(new Star(cx, cy, 0.5, 1, 0.5, 0.05, 10));
+      this.addStar(new Star(cx, cy, 0.5, 1, 0.5, 0.1, -5, 20));
+      return;
+    }
+
+    for (var i = 0; i < count; i++) {
+      var angle = (i / count) * Math.PI * 2 - Math.PI / 2;
+      var dist = 10 + (i % 2) * 8;
+      var offsetX = Math.round(Math.cos(angle) * dist);
+      var offsetY = Math.round(Math.sin(angle) * dist);
+      var isMain = (i === 0);
+      var size = isMain ? 1 : 0.5;
+      var maxSize = isMain ? 2 : 1;
+      var growFactor = 0.05 + (i % 4) * 0.07;
+      var growInterval = 100 + (i % 3) * 50;
+      this.addStar(new Star(cx, cy, size, maxSize, size, growFactor, offsetX, offsetY, growInterval));
+    }
+  }
+
   // Called externally from a shared animation loop (no own rAF)
   update(timestamp) {
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
@@ -77,14 +112,28 @@ class StarCursor {
     }
 
     if (this.opacity > 0) {
-      for (let i = 0; i < this.stars.length; i++) {
+      for (var i = 0; i < this.stars.length; i++) {
         this.stars[i].update(this.mouseX, this.mouseY, timestamp);
       }
+
       this.ctx.save();
       this.ctx.globalAlpha = this.opacity;
-      for (let i = 0; i < this.stars.length; i++) {
-        this.stars[i].draw(this.ctx, this.tempCtx, this.tempCanvas, this.starColor, this.glowColor);
+
+      if (this.colorMode === "rainbow") {
+        var baseHue = (timestamp * this.rainbowSpeed * 0.1) % 360;
+        var starCount = this.stars.length;
+        for (var i = 0; i < starCount; i++) {
+          var hue = (baseHue + i * (360 / starCount)) % 360;
+          var sc = "hsl(" + hue + "," + this.rainbowSaturation + "%," + this.rainbowLightness + "%)";
+          var gc = "hsla(" + hue + "," + this.rainbowSaturation + "%," + Math.min(this.rainbowLightness + 10, 100) + "%,1)";
+          this.stars[i].draw(this.ctx, this.tempCtx, this.tempCanvas, sc, gc);
+        }
+      } else {
+        for (var i = 0; i < this.stars.length; i++) {
+          this.stars[i].draw(this.ctx, this.tempCtx, this.tempCanvas, this.starColor, this.glowColor);
+        }
       }
+
       this.ctx.restore();
     }
   }
