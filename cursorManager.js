@@ -150,6 +150,12 @@
     this._timer = null;
     this._styleEl = null;
     this._blobCursorUrl = null;
+    this._lastCursorValue = "";
+    this._enforceCursorHandler = null;
+    this._overlayEl = null;
+    this._overlayMoveHandler = null;
+    this._overlayHotX = 0;
+    this._overlayHotY = 0;
   }
 
   CursorManager.prototype = {
@@ -171,6 +177,65 @@
     _escapeCssUrl: function (url) {
       return String(url).replace(/'/g, "\\'");
     },
+    _useOverlayCursor: function () {
+      return typeof navigator !== "undefined" && /firefox/i.test(navigator.userAgent || "");
+    },
+
+    _ensureOverlayEl: function () {
+      if (this._overlayEl) return;
+      var el = document.createElement("div");
+      el.id = "star-effects-cursor-overlay";
+      el.style.position = "fixed";
+      el.style.left = "0";
+      el.style.top = "0";
+      el.style.width = "32px";
+      el.style.height = "32px";
+      el.style.pointerEvents = "none";
+      el.style.zIndex = "2147483647";
+      el.style.backgroundRepeat = "no-repeat";
+      el.style.backgroundSize = "contain";
+      el.style.transform = "translate(-9999px,-9999px)";
+      el.style.display = "none";
+      document.body.appendChild(el);
+      this._overlayEl = el;
+    },
+
+    _showOverlayCursor: function (dataUrl, hotX, hotY) {
+      this._ensureOverlayEl();
+      this._overlayHotX = hotX || 0;
+      this._overlayHotY = hotY || 0;
+      this._overlayEl.style.backgroundImage = "url('" + this._escapeCssUrl(dataUrl) + "')";
+      this._overlayEl.style.display = "block";
+      var self = this;
+      var img = new Image();
+      img.onload = function () {
+        self._overlayEl.style.width = img.naturalWidth + "px";
+        self._overlayEl.style.height = img.naturalHeight + "px";
+      };
+      img.src = dataUrl;
+
+      if (!this._overlayMoveHandler) {
+        this._overlayMoveHandler = function (ev) {
+          if (!self._overlayEl) return;
+          var x = ev.clientX - self._overlayHotX;
+          var y = ev.clientY - self._overlayHotY;
+          self._overlayEl.style.transform = "translate(" + x + "px," + y + "px)";
+        };
+        document.addEventListener("mousemove", this._overlayMoveHandler, true);
+      }
+    },
+
+    _hideOverlayCursor: function () {
+      if (this._overlayMoveHandler) {
+        document.removeEventListener("mousemove", this._overlayMoveHandler, true);
+        this._overlayMoveHandler = null;
+      }
+      if (this._overlayEl) {
+        if (this._overlayEl.parentNode) this._overlayEl.parentNode.removeChild(this._overlayEl);
+        this._overlayEl = null;
+      }
+    },
+
 
     _revokeBlobCursorUrl: function () {
       if (this._blobCursorUrl && typeof URL !== "undefined" && URL.revokeObjectURL) {
@@ -242,19 +307,52 @@
 
     /** Set cursor on the page using multiple methods for maximum compatibility. */
     _setCursorValue: function (val) {
+      this._lastCursorValue = val;
       // Method 1: inline style on html + body (highest priority)
       document.documentElement.style.setProperty("cursor", val, "important");
       if (document.body) document.body.style.setProperty("cursor", val, "important");
-      // Method 2: <style> element for all descendants
-      this._styleEl.textContent = "* { cursor: " + val + " !important; }";
+      // Method 2: <style> element for all descendants + pseudo elements
+      // (Firefox can keep default cursor if a child sets its own cursor value)
+      this._styleEl.textContent = "html, body, *, *::before, *::after { cursor: " + val + " !important; }";
+      // Method 3: force cursor on our own canvases (common hover targets)
+      var ownCanvases = document.querySelectorAll("#curs_canv, #curs_canv2");
+      for (var i = 0; i < ownCanvases.length; i++) {
+        ownCanvases[i].style.setProperty("cursor", val, "important");
+      }
+      this._ensureCursorEnforcement();
       console.log("CursorManager: CSS cursor set, value length=" + val.length);
     },
 
+    _ensureCursorEnforcement: function () {
+      if (this._enforceCursorHandler || !document.addEventListener) return;
+      var self = this;
+      this._enforceCursorHandler = function (ev) {
+        if (!self._lastCursorValue) return;
+        var t = ev && ev.target;
+        if (t && t.style && t.style.setProperty) {
+          t.style.setProperty("cursor", self._lastCursorValue, "important");
+        }
+      };
+      document.addEventListener("mousemove", this._enforceCursorHandler, true);
+    },
+
     _setCursor: function (dataUrl, hotX, hotY) {
+      if (this._useOverlayCursor()) {
+        this._setCursorValue("none");
+        this._showOverlayCursor(dataUrl, hotX, hotY);
+        return;
+      }
+      this._hideOverlayCursor();
       this._setCursorValue("url('" + this._escapeCssUrl(dataUrl) + "') " + hotX + " " + hotY + ", auto");
     },
 
     _setCursorFromFileAndData: function (sourceUrl, dataUrl, hotX, hotY) {
+      if (this._useOverlayCursor()) {
+        this._setCursorValue("none");
+        this._showOverlayCursor(dataUrl, hotX, hotY);
+        return;
+      }
+      this._hideOverlayCursor();
       var dataVal = "url('" + this._escapeCssUrl(dataUrl) + "') " + hotX + " " + hotY;
       var sourceVal = "url('" + this._escapeCssUrl(sourceUrl) + "') " + hotX + " " + hotY;
       this._setCursorValue(dataVal + ", " + sourceVal + ", auto");
@@ -288,6 +386,12 @@
       this.stop();
       this._frames = [];
       this._revokeBlobCursorUrl();
+      this._hideOverlayCursor();
+      this._lastCursorValue = "";
+      if (this._enforceCursorHandler) {
+        document.removeEventListener("mousemove", this._enforceCursorHandler, true);
+        this._enforceCursorHandler = null;
+      }
       document.documentElement.style.removeProperty("cursor");
       if (document.body) document.body.style.removeProperty("cursor");
       if (this._styleEl) {
