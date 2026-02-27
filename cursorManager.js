@@ -148,44 +148,72 @@
     this._displayRate = 12;
     this._step = 0;
     this._timer = null;
+    this._styleEl = null;
   }
 
   CursorManager.prototype = {
+    /** Normalise Windows absolute paths (C:\...) to file:// URLs. */
+    _normalizeUrl: function (url) {
+      if (/^[A-Za-z]:[\\/]/.test(url))
+        return "file:///" + url.replace(/\\/g, "/");
+      return url;
+    },
+
+    _ensureStyleEl: function () {
+      if (!this._styleEl) {
+        this._styleEl = document.createElement("style");
+        this._styleEl.id = "star-effects-cursor";
+        document.head.appendChild(this._styleEl);
+      }
+    },
+
     /** Load a .cur or .ani file by URL. Returns a Promise. */
     load: function (url) {
       this.stop();
       this._frames = [];
+      this._ensureStyleEl();
+      url = this._normalizeUrl(url);
       var self = this;
 
+      // .cur files: use native CSS cursor (avoids fetch / CORS issues on file://)
+      if (url.toLowerCase().endsWith(".cur")) {
+        this._setCSSUrl(url);
+        return Promise.resolve();
+      }
+
+      // .ani files: fetch, parse RIFF, and animate frames
       return fetch(url)
         .then(function (r) { return r.arrayBuffer(); })
         .then(function (buf) {
-          if (url.toLowerCase().endsWith(".ani")) {
-            var ani = parseANI(buf);
-            self._displayRate = ani.displayRate;
-            self._rates = ani.rates;
-            self._seq = ani.seq;
-            for (var i = 0; i < ani.frames.length; i++)
-              self._frames.push(curToFrame(ani.frames[i]));
-            self._step = 0;
-            self._apply(0);
-            self._animate();
-          } else {
-            self._frames.push(curToFrame(buf));
-            self._apply(0);
-          }
+          var ani = parseANI(buf);
+          self._displayRate = ani.displayRate;
+          self._rates = ani.rates;
+          self._seq = ani.seq;
+          for (var i = 0; i < ani.frames.length; i++)
+            self._frames.push(curToFrame(ani.frames[i]));
+          self._step = 0;
+          self._apply(0);
+          self._animate();
         })
         .catch(function (e) {
           console.warn("CursorManager: failed to load " + url, e);
         });
     },
 
+    /** Apply a .cur file directly via CSS (browser reads hotspot natively). */
+    _setCSSUrl: function (url) {
+      var escaped = url.replace(/\\/g, "/").replace(/'/g, "\\'");
+      this._styleEl.textContent =
+        "html, body, body * { cursor: url('" + escaped + "'), auto !important; }";
+    },
+
+    /** Apply a parsed frame (data-URL PNG with explicit hotspot). */
     _apply: function (step) {
       var idx = this._seq ? this._seq[step] : step;
       var f = this._frames[idx];
       if (f)
-        document.body.style.cursor =
-          "url(" + f.url + ") " + f.hotX + " " + f.hotY + ", auto";
+        this._styleEl.textContent =
+          "html, body, body * { cursor: url(" + f.url + ") " + f.hotX + " " + f.hotY + ", auto !important; }";
     },
 
     _animate: function () {
@@ -208,7 +236,12 @@
     destroy: function () {
       this.stop();
       this._frames = [];
-      document.body.style.cursor = "";
+      if (this._styleEl) {
+        this._styleEl.textContent = "";
+        if (this._styleEl.parentNode)
+          this._styleEl.parentNode.removeChild(this._styleEl);
+        this._styleEl = null;
+      }
     }
   };
 
