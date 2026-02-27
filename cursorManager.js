@@ -139,6 +139,19 @@
     return { url: canvas.toDataURL("image/png"), hotX: hotX, hotY: hotY };
   }
 
+  // ── data URL → Blob (for Firefox PNG cursor compatibility) ──
+
+  function dataUrlToBlob(dataUrl) {
+    var parts = dataUrl.split(",");
+    var mime = parts[0].match(/:(.*?);/)[1];
+    var bin = atob(parts[1]);
+    var arr = new Uint8Array(bin.length);
+    for (var i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+    return new Blob([arr], { type: mime });
+  }
+
+  var canBlob = typeof URL !== "undefined" && URL.createObjectURL && typeof Blob !== "undefined";
+
   // ── CursorManager ──
 
   function CursorManager() {
@@ -172,8 +185,16 @@
       return String(url).replace(/'/g, "\\'");
     },
 
-    _revokeBlobCursorUrl: function () {
-      if (this._blobCursorUrl && typeof URL !== "undefined" && URL.revokeObjectURL) {
+    _revokeBlobUrls: function () {
+      var canRevoke = typeof URL !== "undefined" && URL.revokeObjectURL;
+      // Revoke PNG blob URLs from frames (before clearing _frames)
+      if (canRevoke) {
+        for (var i = 0; i < this._frames.length; i++) {
+          if (this._frames[i].blobUrl) URL.revokeObjectURL(this._frames[i].blobUrl);
+        }
+      }
+      // Revoke .cur source blob URL
+      if (this._blobCursorUrl && canRevoke) {
         URL.revokeObjectURL(this._blobCursorUrl);
       }
       this._blobCursorUrl = null;
@@ -200,8 +221,8 @@
     /** Load a .cur or .ani file by URL. Returns a Promise. */
     load: function (url) {
       this.stop();
+      this._revokeBlobUrls();
       this._frames = [];
-      this._revokeBlobCursorUrl();
       this._ensureStyleEl();
       url = this._normalizeUrl(url);
       var self = this;
@@ -213,20 +234,26 @@
           console.log("CursorManager: fetched " + buf.byteLength + " bytes");
           if (isCur) {
             var frame = curToFrame(buf);
+            if (canBlob) frame.blobUrl = URL.createObjectURL(dataUrlToBlob(frame.url));
             self._frames = [frame];
-            if (typeof URL !== "undefined" && URL.createObjectURL && typeof Blob !== "undefined") {
+            if (canBlob) {
               self._blobCursorUrl = URL.createObjectURL(new Blob([buf], { type: "image/x-icon" }));
             }
-            self._setCursorFromFileAndData(self._blobCursorUrl || url, frame.url, frame.hotX, frame.hotY);
+            self._setCursorFromFileAndData(self._blobCursorUrl || url, frame.url, frame.hotX, frame.hotY, frame.blobUrl);
             console.log("CursorManager: .cur parsed, dataURL length=" + frame.url.length +
-              ", hotspot=(" + frame.hotX + "," + frame.hotY + ")" + ", source=" + (self._blobCursorUrl ? "blob" : "url"));
+              ", hotspot=(" + frame.hotX + "," + frame.hotY + ")" +
+              ", source=" + (self._blobCursorUrl ? "blob" : "url") +
+              ", pngBlob=" + !!frame.blobUrl);
           } else {
             var ani = parseANI(buf);
             self._displayRate = ani.displayRate;
             self._rates = ani.rates;
             self._seq = ani.seq;
-            for (var i = 0; i < ani.frames.length; i++)
-              self._frames.push(curToFrame(ani.frames[i]));
+            for (var i = 0; i < ani.frames.length; i++) {
+              var f = curToFrame(ani.frames[i]);
+              if (canBlob) f.blobUrl = URL.createObjectURL(dataUrlToBlob(f.url));
+              self._frames.push(f);
+            }
             self._step = 0;
             self._apply(0);
             self._animate();
@@ -250,21 +277,26 @@
       console.log("CursorManager: CSS cursor set, value length=" + val.length);
     },
 
-    _setCursor: function (dataUrl, hotX, hotY) {
-      this._setCursorValue("url('" + this._escapeCssUrl(dataUrl) + "') " + hotX + " " + hotY + ", auto");
+    _setCursor: function (dataUrl, hotX, hotY, blobUrl) {
+      var parts = ["url('" + this._escapeCssUrl(dataUrl) + "') " + hotX + " " + hotY];
+      // PNG blob URL fallback — Firefox rejects PNG data URLs as cursors
+      if (blobUrl) parts.push("url('" + this._escapeCssUrl(blobUrl) + "') " + hotX + " " + hotY);
+      this._setCursorValue(parts.join(", ") + ", auto");
     },
 
-    _setCursorFromFileAndData: function (sourceUrl, dataUrl, hotX, hotY) {
-      var dataVal = "url('" + this._escapeCssUrl(dataUrl) + "') " + hotX + " " + hotY;
-      var sourceVal = "url('" + this._escapeCssUrl(sourceUrl) + "') " + hotX + " " + hotY;
-      this._setCursorValue(dataVal + ", " + sourceVal + ", auto");
+    _setCursorFromFileAndData: function (sourceUrl, dataUrl, hotX, hotY, blobUrl) {
+      var parts = ["url('" + this._escapeCssUrl(dataUrl) + "') " + hotX + " " + hotY];
+      // PNG blob URL fallback — Firefox rejects PNG data URLs as cursors
+      if (blobUrl) parts.push("url('" + this._escapeCssUrl(blobUrl) + "') " + hotX + " " + hotY);
+      parts.push("url('" + this._escapeCssUrl(sourceUrl) + "') " + hotX + " " + hotY);
+      this._setCursorValue(parts.join(", ") + ", auto");
     },
 
     /** Apply a parsed frame (data-URL PNG with explicit hotspot) — for .ani animation. */
     _apply: function (step) {
       var idx = this._seq ? this._seq[step] : step;
       var f = this._frames[idx];
-      if (f) this._setCursor(f.url, f.hotX, f.hotY);
+      if (f) this._setCursor(f.url, f.hotX, f.hotY, f.blobUrl);
     },
 
     _animate: function () {
@@ -286,8 +318,8 @@
 
     destroy: function () {
       this.stop();
+      this._revokeBlobUrls();
       this._frames = [];
-      this._revokeBlobCursorUrl();
       document.documentElement.style.removeProperty("cursor");
       if (document.body) document.body.style.removeProperty("cursor");
       if (this._styleEl) {
