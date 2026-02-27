@@ -149,6 +149,7 @@
     this._step = 0;
     this._timer = null;
     this._styleEl = null;
+    this._blobCursorUrl = null;
   }
 
   CursorManager.prototype = {
@@ -165,6 +166,17 @@
         this._styleEl.id = "star-effects-cursor";
         document.head.appendChild(this._styleEl);
       }
+    },
+
+    _escapeCssUrl: function (url) {
+      return String(url).replace(/'/g, "\\'");
+    },
+
+    _revokeBlobCursorUrl: function () {
+      if (this._blobCursorUrl && typeof URL !== "undefined" && URL.revokeObjectURL) {
+        URL.revokeObjectURL(this._blobCursorUrl);
+      }
+      this._blobCursorUrl = null;
     },
 
     /** Fetch binary data with XHR fallback (XHR works on file:// in Firefox). */
@@ -189,6 +201,7 @@
     load: function (url) {
       this.stop();
       this._frames = [];
+      this._revokeBlobCursorUrl();
       this._ensureStyleEl();
       url = this._normalizeUrl(url);
       var self = this;
@@ -201,9 +214,12 @@
           if (isCur) {
             var frame = curToFrame(buf);
             self._frames = [frame];
-            self._setCursor(frame.url, frame.hotX, frame.hotY);
+            if (typeof URL !== "undefined" && URL.createObjectURL && typeof Blob !== "undefined") {
+              self._blobCursorUrl = URL.createObjectURL(new Blob([buf], { type: "image/x-icon" }));
+            }
+            self._setCursorFromFileAndData(self._blobCursorUrl || url, frame.url, frame.hotX, frame.hotY);
             console.log("CursorManager: .cur parsed, dataURL length=" + frame.url.length +
-              ", hotspot=(" + frame.hotX + "," + frame.hotY + ")");
+              ", hotspot=(" + frame.hotX + "," + frame.hotY + ")" + ", source=" + (self._blobCursorUrl ? "blob" : "url"));
           } else {
             var ani = parseANI(buf);
             self._displayRate = ani.displayRate;
@@ -225,14 +241,23 @@
     },
 
     /** Set cursor on the page using multiple methods for maximum compatibility. */
-    _setCursor: function (dataUrl, hotX, hotY) {
-      var val = "url('" + dataUrl + "') " + hotX + " " + hotY + ", auto";
+    _setCursorValue: function (val) {
       // Method 1: inline style on html + body (highest priority)
       document.documentElement.style.setProperty("cursor", val, "important");
       if (document.body) document.body.style.setProperty("cursor", val, "important");
       // Method 2: <style> element for all descendants
-      this._styleEl.textContent = "* { cursor: url('" + dataUrl + "') " + hotX + " " + hotY + ", auto !important; }";
+      this._styleEl.textContent = "* { cursor: " + val + " !important; }";
       console.log("CursorManager: CSS cursor set, value length=" + val.length);
+    },
+
+    _setCursor: function (dataUrl, hotX, hotY) {
+      this._setCursorValue("url('" + this._escapeCssUrl(dataUrl) + "') " + hotX + " " + hotY + ", auto");
+    },
+
+    _setCursorFromFileAndData: function (sourceUrl, dataUrl, hotX, hotY) {
+      var sourceVal = "url('" + this._escapeCssUrl(sourceUrl) + "')";
+      var dataVal = "url('" + this._escapeCssUrl(dataUrl) + "') " + hotX + " " + hotY;
+      this._setCursorValue(sourceVal + ", " + dataVal + ", auto");
     },
 
     /** Apply a parsed frame (data-URL PNG with explicit hotspot) — for .ani animation. */
@@ -262,6 +287,7 @@
     destroy: function () {
       this.stop();
       this._frames = [];
+      this._revokeBlobCursorUrl();
       document.documentElement.style.removeProperty("cursor");
       if (document.body) document.body.style.removeProperty("cursor");
       if (this._styleEl) {
