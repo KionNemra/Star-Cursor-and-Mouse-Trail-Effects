@@ -155,14 +155,13 @@
   // ── CursorManager ──
 
   function CursorManager() {
-    this._frames = [];  // [{ url, hotX, hotY }]
+    this._frames = [];  // [{ url, hotX, hotY, blobUrl?, curBlobUrl? }]
     this._rates = null;
     this._seq = null;
     this._displayRate = 12;
     this._step = 0;
     this._timer = null;
     this._styleEl = null;
-    this._blobCursorUrl = null;
   }
 
   CursorManager.prototype = {
@@ -187,17 +186,12 @@
 
     _revokeBlobUrls: function () {
       var canRevoke = typeof URL !== "undefined" && URL.revokeObjectURL;
-      // Revoke PNG blob URLs from frames (before clearing _frames)
       if (canRevoke) {
         for (var i = 0; i < this._frames.length; i++) {
           if (this._frames[i].blobUrl) URL.revokeObjectURL(this._frames[i].blobUrl);
+          if (this._frames[i].curBlobUrl) URL.revokeObjectURL(this._frames[i].curBlobUrl);
         }
       }
-      // Revoke .cur source blob URL
-      if (this._blobCursorUrl && canRevoke) {
-        URL.revokeObjectURL(this._blobCursorUrl);
-      }
-      this._blobCursorUrl = null;
     },
 
     /** Fetch binary data with XHR fallback (XHR works on file:// in Firefox). */
@@ -236,13 +230,11 @@
             var frame = curToFrame(buf);
             if (canBlob) frame.blobUrl = URL.createObjectURL(dataUrlToBlob(frame.url));
             self._frames = [frame];
-            if (canBlob) {
-              self._blobCursorUrl = URL.createObjectURL(new Blob([buf], { type: "image/x-icon" }));
-            }
-            self._setCursorFromFileAndData(self._blobCursorUrl || url, frame.url, frame.hotX, frame.hotY, frame.blobUrl);
-            console.log("CursorManager: .cur parsed, dataURL length=" + frame.url.length +
+            // Use original .cur URL directly — Firefox (and all browsers)
+            // support .cur natively in CSS cursor, no conversion needed.
+            self._setCursor(frame, url);
+            console.log("CursorManager: .cur loaded, using direct URL as primary cursor" +
               ", hotspot=(" + frame.hotX + "," + frame.hotY + ")" +
-              ", source=" + (self._blobCursorUrl ? "blob" : "url") +
               ", pngBlob=" + !!frame.blobUrl);
           } else {
             var ani = parseANI(buf);
@@ -251,7 +243,12 @@
             self._seq = ani.seq;
             for (var i = 0; i < ani.frames.length; i++) {
               var f = curToFrame(ani.frames[i]);
-              if (canBlob) f.blobUrl = URL.createObjectURL(dataUrlToBlob(f.url));
+              if (canBlob) {
+                f.blobUrl = URL.createObjectURL(dataUrlToBlob(f.url));
+                // Create .cur blob URL from raw frame data — each .ani frame
+                // is a complete ICO/CUR binary. Firefox handles these natively.
+                f.curBlobUrl = URL.createObjectURL(new Blob([ani.frames[i]], { type: "image/x-icon" }));
+              }
               self._frames.push(f);
             }
             self._step = 0;
@@ -277,26 +274,31 @@
       console.log("CursorManager: CSS cursor set, value length=" + val.length);
     },
 
-    _setCursor: function (dataUrl, hotX, hotY, blobUrl) {
-      var parts = ["url('" + this._escapeCssUrl(dataUrl) + "') " + hotX + " " + hotY];
-      // PNG blob URL fallback — Firefox rejects PNG data URLs as cursors
-      if (blobUrl) parts.push("url('" + this._escapeCssUrl(blobUrl) + "') " + hotX + " " + hotY);
+    /**
+     * Set CSS cursor with .cur-first fallback chain.
+     * Firefox can LOAD PNG data/blob URLs but refuses to DISPLAY them as
+     * cursors, then jumps straight to "auto" instead of trying the next
+     * fallback.  Putting the native .cur URL first fixes this:
+     *   .cur URL/blob (native, no hotspot needed) → PNG blob → PNG data → auto
+     */
+    _setCursor: function (frame, curFileUrl) {
+      var parts = [];
+      // 1) Native .cur URL — works in all browsers, Firefox included
+      if (curFileUrl) parts.push("url('" + this._escapeCssUrl(curFileUrl) + "')");
+      // 2) .cur blob URL for .ani frames (native cursor data, Firefox friendly)
+      if (frame.curBlobUrl) parts.push("url('" + this._escapeCssUrl(frame.curBlobUrl) + "')");
+      // 3) PNG blob URL (Chrome/Safari fast path)
+      if (frame.blobUrl) parts.push("url('" + this._escapeCssUrl(frame.blobUrl) + "') " + frame.hotX + " " + frame.hotY);
+      // 4) PNG data URL (universal last resort)
+      parts.push("url('" + this._escapeCssUrl(frame.url) + "') " + frame.hotX + " " + frame.hotY);
       this._setCursorValue(parts.join(", ") + ", auto");
     },
 
-    _setCursorFromFileAndData: function (sourceUrl, dataUrl, hotX, hotY, blobUrl) {
-      var parts = ["url('" + this._escapeCssUrl(dataUrl) + "') " + hotX + " " + hotY];
-      // PNG blob URL fallback — Firefox rejects PNG data URLs as cursors
-      if (blobUrl) parts.push("url('" + this._escapeCssUrl(blobUrl) + "') " + hotX + " " + hotY);
-      parts.push("url('" + this._escapeCssUrl(sourceUrl) + "') " + hotX + " " + hotY);
-      this._setCursorValue(parts.join(", ") + ", auto");
-    },
-
-    /** Apply a parsed frame (data-URL PNG with explicit hotspot) — for .ani animation. */
+    /** Apply a parsed frame — for .ani animation. */
     _apply: function (step) {
       var idx = this._seq ? this._seq[step] : step;
       var f = this._frames[idx];
-      if (f) this._setCursor(f.url, f.hotX, f.hotY, f.blobUrl);
+      if (f) this._setCursor(f);
     },
 
     _animate: function () {
