@@ -2,16 +2,16 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Cursor Test - No JavaScript</title>
+    <title>Cursor Test - Firefox Diagnostic</title>
     <style>
         html, body { margin: 0; min-height: 100vh; }
         body { background: #333; }
         h1 { color: white; padding: 30px; }
         p { color: #ccc; padding: 0 30px; }
         .test-box {
-            width: 400px; height: 150px; margin: 20px 30px;
+            width: 400px; height: 120px; margin: 15px 30px;
             display: flex; align-items: center; justify-content: center;
-            color: white; font-size: 18px; font-family: monospace;
+            color: white; font-size: 16px; font-family: monospace;
         }
 
         /* Test 1: cursor: none */
@@ -20,27 +20,34 @@
         /* Test 2: cursor: crosshair */
         .test-crosshair { background: #008; cursor: crosshair !important; }
 
-        /* Test 3: inline SVG data URL cursor (red circle 32x32) */
+        /* Test 3: SVG data URL cursor (red circle 32x32) - WORKS */
         .test-svg {
             background: #080;
             cursor: url('data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2232%22 height=%2232%22%3E%3Ccircle cx=%2216%22 cy=%2216%22 r=%2215%22 fill=%22red%22/%3E%3C/svg%3E') 16 16, auto !important;
         }
 
-        /* Test 4: tiny PNG data URL cursor (8x8 red square) */
+        /* Test 4: PNG data URL cursor (8x8 red square) - FAILS in Firefox */
         .test-png {
             background: #808;
             cursor: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAAAXNSR0IArs4c6QAAABhJREFUKFNj/M/A8J+BgYGRAQMwMowOAQAi4AF1dmeVWAAAAABJRU5ErkJggg==') 4 4, auto !important;
+        }
+
+        /* Test 5: PNG wrapped in SVG (THE FIX) */
+        .test-svg-wrapped-png {
+            background: #880;
+            cursor: url('data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%228%22 height=%228%22%3E%3Cimage href=%22data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAAAXNSR0IArs4c6QAAABhJREFUKFNj/M/A8J+BgYGRAQMwMowOAQAi4AF1dmeVWAAAAABJRU5ErkJggg==%22 width=%228%22 height=%228%22/%3E%3C/svg%3E') 4 4, auto !important;
         }
     </style>
     <!-- ZERO JavaScript on this page -->
 </head>
 <body>
-    <h1>Firefox Cursor Diagnostic - No JS</h1>
-    <p>Hover over each box and report what cursor you see:</p>
+    <h1>Firefox Cursor Diagnostic</h1>
+    <p>Hover over each box:</p>
 
-    <div class="test-box test-none">Test 1: cursor: none (should be invisible)</div>
-    <div class="test-box test-crosshair">Test 2: cursor: crosshair</div>
-    <div class="test-box test-svg">Test 3: SVG data URL (should be red circle)</div>
-    <div class="test-box test-png">Test 4: PNG data URL (should be red square)</div>
+    <div class="test-box test-none">Test 1: cursor: none (invisible)</div>
+    <div class="test-box test-crosshair">Test 2: crosshair</div>
+    <div class="test-box test-svg">Test 3: SVG data URL (red circle)</div>
+    <div class="test-box test-png">Test 4: PNG data URL (FAILS in Firefox)</div>
+    <div class="test-box test-svg-wrapped-png">Test 5: PNG wrapped in SVG (THE FIX?)</div>
 </body>
 </html>
