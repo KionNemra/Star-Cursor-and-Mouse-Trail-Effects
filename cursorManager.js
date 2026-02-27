@@ -167,6 +167,10 @@
       }
     },
 
+    _escapeCssUrl: function (url) {
+      return String(url).replace(/'/g, "\\'");
+    },
+
     /** Fetch binary data with XHR fallback (XHR works on file:// in Firefox). */
     _fetchBinary: function (url) {
       if (typeof fetch === "function" && location.protocol !== "file:") {
@@ -201,7 +205,7 @@
           if (isCur) {
             var frame = curToFrame(buf);
             self._frames = [frame];
-            self._setCursor(frame.url, frame.hotX, frame.hotY);
+            self._setCursorFromFileAndData(url, frame.url, frame.hotX, frame.hotY);
             console.log("CursorManager: .cur parsed, dataURL length=" + frame.url.length +
               ", hotspot=(" + frame.hotX + "," + frame.hotY + ")");
           } else {
@@ -225,14 +229,23 @@
     },
 
     /** Set cursor on the page using multiple methods for maximum compatibility. */
-    _setCursor: function (dataUrl, hotX, hotY) {
-      var val = "url('" + dataUrl + "') " + hotX + " " + hotY + ", auto";
+    _setCursorValue: function (val) {
       // Method 1: inline style on html + body (highest priority)
       document.documentElement.style.setProperty("cursor", val, "important");
       if (document.body) document.body.style.setProperty("cursor", val, "important");
       // Method 2: <style> element for all descendants
-      this._styleEl.textContent = "* { cursor: url('" + dataUrl + "') " + hotX + " " + hotY + ", auto !important; }";
+      this._styleEl.textContent = "* { cursor: " + val + " !important; }";
       console.log("CursorManager: CSS cursor set, value length=" + val.length);
+    },
+
+    _setCursor: function (dataUrl, hotX, hotY) {
+      this._setCursorValue("url('" + this._escapeCssUrl(dataUrl) + "') " + hotX + " " + hotY + ", auto");
+    },
+
+    _setCursorFromFileAndData: function (sourceUrl, dataUrl, hotX, hotY) {
+      var sourceVal = "url('" + this._escapeCssUrl(sourceUrl) + "')";
+      var dataVal = "url('" + this._escapeCssUrl(dataUrl) + "') " + hotX + " " + hotY;
+      this._setCursorValue(sourceVal + ", " + dataVal + ", auto");
     },
 
     /** Apply a parsed frame (data-URL PNG with explicit hotspot) — for .ani animation. */
