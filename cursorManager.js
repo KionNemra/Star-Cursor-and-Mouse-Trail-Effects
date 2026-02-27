@@ -192,41 +192,42 @@
       this._ensureStyleEl();
       url = this._normalizeUrl(url);
       var self = this;
+      var isCur = url.toLowerCase().endsWith(".cur");
       console.log("CursorManager: loading " + url);
 
-      // .cur files: use native CSS cursor (avoids fetch / CORS issues on file://)
-      if (url.toLowerCase().endsWith(".cur")) {
-        this._setCSSUrl(url);
-        console.log("CursorManager: applied .cur via CSS");
-        return Promise.resolve();
-      }
-
-      // .ani files: fetch binary, parse RIFF, and animate frames
       return this._fetchBinary(url)
         .then(function (buf) {
-          var ani = parseANI(buf);
-          self._displayRate = ani.displayRate;
-          self._rates = ani.rates;
-          self._seq = ani.seq;
-          for (var i = 0; i < ani.frames.length; i++)
-            self._frames.push(curToFrame(ani.frames[i]));
-          self._step = 0;
-          self._apply(0);
-          self._animate();
-          console.log("CursorManager: .ani loaded, " + self._frames.length + " frames");
+          if (isCur) {
+            // Parse .cur → PNG data URL and apply as static cursor
+            var frame = curToFrame(buf);
+            self._frames = [frame];
+            self._applyFrame(frame);
+            console.log("CursorManager: .cur applied (" + frame.hotX + "," + frame.hotY + ")");
+          } else {
+            // .ani: parse RIFF, convert frames, animate
+            var ani = parseANI(buf);
+            self._displayRate = ani.displayRate;
+            self._rates = ani.rates;
+            self._seq = ani.seq;
+            for (var i = 0; i < ani.frames.length; i++)
+              self._frames.push(curToFrame(ani.frames[i]));
+            self._step = 0;
+            self._apply(0);
+            self._animate();
+            console.log("CursorManager: .ani loaded, " + self._frames.length + " frames");
+          }
         })
         .catch(function (e) {
           console.warn("CursorManager: failed to load " + url, e);
           if (location.protocol === "file:")
-            console.warn("CursorManager: .ani files need an HTTP server when using file:// protocol. Try: python -m http.server");
+            console.warn("CursorManager: on file:// protocol, try: python -m http.server");
         });
     },
 
-    /** Apply a .cur file directly via CSS (browser reads hotspot natively). */
-    _setCSSUrl: function (url) {
-      var escaped = url.replace(/\\/g, "/").replace(/'/g, "\\'");
+    /** Apply a single parsed frame as the cursor (for .cur files). */
+    _applyFrame: function (f) {
       this._styleEl.textContent =
-        "html, body, body * { cursor: url('" + escaped + "'), auto !important; }";
+        "html, body, body * { cursor: url(" + f.url + ") " + f.hotX + " " + f.hotY + ", auto !important; }";
     },
 
     /** Apply a parsed frame (data-URL PNG with explicit hotspot). */
