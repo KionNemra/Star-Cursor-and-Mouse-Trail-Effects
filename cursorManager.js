@@ -167,6 +167,24 @@
       }
     },
 
+    /** Fetch binary data with XHR fallback (XHR works on file:// in Firefox). */
+    _fetchBinary: function (url) {
+      if (typeof fetch === "function" && location.protocol !== "file:") {
+        return fetch(url).then(function (r) { return r.arrayBuffer(); });
+      }
+      return new Promise(function (resolve, reject) {
+        var xhr = new XMLHttpRequest();
+        xhr.open("GET", url);
+        xhr.responseType = "arraybuffer";
+        xhr.onload = function () {
+          if (xhr.status === 0 || xhr.status === 200) resolve(xhr.response);
+          else reject(new Error("HTTP " + xhr.status));
+        };
+        xhr.onerror = function () { reject(new Error("XHR failed for " + url)); };
+        xhr.send();
+      });
+    },
+
     /** Load a .cur or .ani file by URL. Returns a Promise. */
     load: function (url) {
       this.stop();
@@ -174,16 +192,17 @@
       this._ensureStyleEl();
       url = this._normalizeUrl(url);
       var self = this;
+      console.log("CursorManager: loading " + url);
 
       // .cur files: use native CSS cursor (avoids fetch / CORS issues on file://)
       if (url.toLowerCase().endsWith(".cur")) {
         this._setCSSUrl(url);
+        console.log("CursorManager: applied .cur via CSS");
         return Promise.resolve();
       }
 
-      // .ani files: fetch, parse RIFF, and animate frames
-      return fetch(url)
-        .then(function (r) { return r.arrayBuffer(); })
+      // .ani files: fetch binary, parse RIFF, and animate frames
+      return this._fetchBinary(url)
         .then(function (buf) {
           var ani = parseANI(buf);
           self._displayRate = ani.displayRate;
@@ -194,9 +213,12 @@
           self._step = 0;
           self._apply(0);
           self._animate();
+          console.log("CursorManager: .ani loaded, " + self._frames.length + " frames");
         })
         .catch(function (e) {
           console.warn("CursorManager: failed to load " + url, e);
+          if (location.protocol === "file:")
+            console.warn("CursorManager: .ani files need an HTTP server when using file:// protocol. Try: python -m http.server");
         });
     },
 
