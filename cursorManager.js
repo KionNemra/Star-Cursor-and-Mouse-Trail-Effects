@@ -162,6 +162,7 @@
     this._step = 0;
     this._timer = null;
     this._styleEl = null;
+    this._isFirefox = typeof navigator !== "undefined" && /firefox/i.test(navigator.userAgent || "");
   }
 
   CursorManager.prototype = {
@@ -287,10 +288,16 @@
       if (curFileUrl) parts.push("url('" + this._escapeCssUrl(curFileUrl) + "')");
       // 2) .cur blob URL for .ani frames (native cursor data, Firefox friendly)
       if (frame.curBlobUrl) parts.push("url('" + this._escapeCssUrl(frame.curBlobUrl) + "')");
-      // 3) PNG blob URL (Chrome/Safari fast path)
-      if (frame.blobUrl) parts.push("url('" + this._escapeCssUrl(frame.blobUrl) + "') " + frame.hotX + " " + frame.hotY);
-      // 4) PNG data URL (universal last resort)
-      parts.push("url('" + this._escapeCssUrl(frame.url) + "') " + frame.hotX + " " + frame.hotY);
+
+      // Firefox frequently refuses PNG cursor entries once native CUR sources exist.
+      // Keep Firefox on native CUR/CUR-blob only to avoid full-chain cursor fallback failures.
+      if (!this._isFirefox || parts.length === 0) {
+        // 3) PNG blob URL (Chrome/Safari fast path)
+        if (frame.blobUrl) parts.push("url('" + this._escapeCssUrl(frame.blobUrl) + "') " + frame.hotX + " " + frame.hotY);
+        // 4) PNG data URL (universal last resort)
+        parts.push("url('" + this._escapeCssUrl(frame.url) + "') " + frame.hotX + " " + frame.hotY);
+      }
+
       this._setCursorValue(parts.join(", ") + ", auto");
     },
 
