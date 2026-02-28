@@ -54,6 +54,7 @@ class StarCursor {
     this.rainbowLightness = options.rainbowLightness || 65;
 
     this.style = options.style || "star";
+    this.sizeScale = options.sizeScale || 1;
 
     this.stars = [];
   }
@@ -128,11 +129,11 @@ class StarCursor {
           var hue = (baseHue + i * (360 / starCount)) % 360;
           var sc = "hsl(" + hue + "," + this.rainbowSaturation + "%," + this.rainbowLightness + "%)";
           var gc = "hsla(" + hue + "," + this.rainbowSaturation + "%," + Math.min(this.rainbowLightness + 10, 100) + "%,1)";
-          this.stars[i].draw(this.ctx, this.tempCtx, this.tempCanvas, sc, gc, this.style);
+          this.stars[i].draw(this.ctx, this.tempCtx, this.tempCanvas, sc, gc, this.style, this.sizeScale);
         }
       } else {
         for (var i = 0; i < this.stars.length; i++) {
-          this.stars[i].draw(this.ctx, this.tempCtx, this.tempCanvas, this.starColor, this.glowColor, this.style);
+          this.stars[i].draw(this.ctx, this.tempCtx, this.tempCanvas, this.starColor, this.glowColor, this.style, this.sizeScale);
         }
       }
 
@@ -169,8 +170,8 @@ class Star {
     }
   }
 
-  draw(ctx, tempCtx, tempCanvas, color, glowColor, style) {
-    const s = this.size;
+  draw(ctx, tempCtx, tempCanvas, color, glowColor, style, sizeScale) {
+    const s = this.size * (sizeScale || 1);
     const cx = tempCanvas.width / 2;
     const cy = tempCanvas.height / 2;
 

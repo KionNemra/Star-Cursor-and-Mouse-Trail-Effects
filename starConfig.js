@@ -38,6 +38,11 @@
     // --- Shape styles ---
     trailStyle: "star",        // trail particle shape: "star" | "bubble" | "heart"
     cursorStyle: "star",       // cursor star shape:    "star" | "bubble" | "heart"
+    burstStyle: "star",        // burst particle shape: "star" | "bubble" | "heart"
+
+    // --- Size ---
+    trailSize: 100,            // trail particle size scale (50-200 %)
+    cursorSize: 100,           // cursor star size scale   (50-200 %)
 
     // --- Custom cursor ---
     cursor: null,              // path to .cur or .ani file, null = browser default

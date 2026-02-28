@@ -6,6 +6,8 @@ class MouseTrail {
     this.ctx = this.canvas.getContext('2d');
     this.shape = shape;
     this.style = options.style || "star";
+    this.burstStyle = options.burstStyle || this.style;
+    this.sizeScale = options.sizeScale || 1;
     this.trail = [];
     this.maxSquares = options.maxSquares || 20;
     this.minDistance = options.minDistance || 20;
@@ -58,7 +60,8 @@ class MouseTrail {
           growing: Math.random() < 0.5,
           vx: 0,
           vy: this.initialVy,
-          hue: this._rainbowHue
+          hue: this._rainbowHue,
+          shapeStyle: this.style
         });
       }
       this._rainbowHue = (this._rainbowHue + this.rainbowSpeed) % 360;
@@ -85,7 +88,8 @@ class MouseTrail {
         vy: Math.sin(angle) * speed,
         hue: this.colorMode === "rainbow"
           ? (this._rainbowHue + (i / count) * 360) % 360
-          : 0
+          : 0,
+        shapeStyle: this.burstStyle
       });
     }
     if (this.colorMode === "rainbow") {
@@ -129,22 +133,25 @@ class MouseTrail {
         this.ctx.fillStyle = "hsl(" + el.hue + "," + this.rainbowSaturation + "%," + this.rainbowLightness + "%)";
       }
 
-      if (this.style === "bubble") {
+      const pStyle = el.shapeStyle || this.style;
+      const sz = el.size * this.sizeScale;
+
+      if (pStyle === "bubble") {
         this.ctx.beginPath();
-        this.ctx.arc(el.x, el.y, el.size * 4, 0, Math.PI * 2);
+        this.ctx.arc(el.x, el.y, sz * 4, 0, Math.PI * 2);
         this.ctx.fill();
         // highlight for glossy bubble look
         this.ctx.save();
         this.ctx.globalAlpha = alpha * 0.4;
         this.ctx.fillStyle = "#ffffff";
         this.ctx.beginPath();
-        this.ctx.arc(el.x - el.size * 1.2, el.y - el.size * 1.2, el.size * 1.2, 0, Math.PI * 2);
+        this.ctx.arc(el.x - sz * 1.2, el.y - sz * 1.2, sz * 1.2, 0, Math.PI * 2);
         this.ctx.fill();
         this.ctx.restore();
         if (isRainbow) this.ctx.fillStyle = "hsl(" + el.hue + "," + this.rainbowSaturation + "%," + this.rainbowLightness + "%)";
         else this.ctx.fillStyle = this.color;
-      } else if (this.style === "heart") {
-        var s = el.size * 3;
+      } else if (pStyle === "heart") {
+        var s = sz * 3;
         this.ctx.save();
         this.ctx.translate(el.x, el.y);
         this.ctx.beginPath();
@@ -156,9 +163,9 @@ class MouseTrail {
         this.ctx.restore();
       } else {
         this.ctx.beginPath();
-        this.ctx.moveTo(el.x + this.shape[0].x * el.size, el.y + this.shape[0].y * el.size);
+        this.ctx.moveTo(el.x + this.shape[0].x * sz, el.y + this.shape[0].y * sz);
         for (let j = 1; j < this.shape.length; j++) {
-          this.ctx.lineTo(el.x + this.shape[j].x * el.size, el.y + this.shape[j].y * el.size);
+          this.ctx.lineTo(el.x + this.shape[j].x * sz, el.y + this.shape[j].y * sz);
         }
         this.ctx.closePath();
         this.ctx.fill();

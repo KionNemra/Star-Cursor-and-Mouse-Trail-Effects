@@ -36,6 +36,9 @@
     clickBurstCount: 12,
     trailStyle: "star",        // "star" | "bubble" | "heart"
     cursorStyle: "star",
+    burstStyle: "star",        // "star" | "bubble" | "heart"
+    trailSize: 100,            // trail particle size scale (50-200 %)
+    cursorSize: 100,           // cursor star size scale   (50-200 %)
     cursor: ""                 // filename like "cyan.ani", "" = browser default
   };
 
@@ -73,6 +76,8 @@
     this.ctx = this.canvas.getContext("2d");
     this.shape = shape;
     this.style = options.style || "star";
+    this.burstStyle = options.burstStyle || this.style;
+    this.sizeScale = options.sizeScale || 1;
     this.trail = [];
     this.maxSquares = options.maxSquares || 20;
     this.minDistance = options.minDistance || 20;
@@ -127,7 +132,8 @@
           growing: Math.random() < 0.5,
           vx: 0,
           vy: this.initialVy,
-          hue: this._rainbowHue
+          hue: this._rainbowHue,
+          shapeStyle: this.style
         });
       }
       this._rainbowHue = (this._rainbowHue + this.rainbowSpeed) % 360;
@@ -152,7 +158,8 @@
         vx: Math.cos(angle) * speed,
         vy: Math.sin(angle) * speed,
         hue: this.colorMode === "rainbow"
-          ? (this._rainbowHue + (i / count) * 360) % 360 : 0
+          ? (this._rainbowHue + (i / count) * 360) % 360 : 0,
+        shapeStyle: this.burstStyle
       });
     }
     if (this.colorMode === "rainbow")
@@ -190,21 +197,24 @@
       if (isRainbow)
         this.ctx.fillStyle = "hsl(" + el.hue + "," + this.rainbowSaturation + "%," + this.rainbowLightness + "%)";
 
-      if (this.style === "bubble") {
+      var pStyle = el.shapeStyle || this.style;
+      var sz = el.size * this.sizeScale;
+
+      if (pStyle === "bubble") {
         this.ctx.beginPath();
-        this.ctx.arc(el.x, el.y, el.size * 4, 0, Math.PI * 2);
+        this.ctx.arc(el.x, el.y, sz * 4, 0, Math.PI * 2);
         this.ctx.fill();
         this.ctx.save();
         this.ctx.globalAlpha = alpha * 0.4;
         this.ctx.fillStyle = "#ffffff";
         this.ctx.beginPath();
-        this.ctx.arc(el.x - el.size * 1.2, el.y - el.size * 1.2, el.size * 1.2, 0, Math.PI * 2);
+        this.ctx.arc(el.x - sz * 1.2, el.y - sz * 1.2, sz * 1.2, 0, Math.PI * 2);
         this.ctx.fill();
         this.ctx.restore();
         if (isRainbow) this.ctx.fillStyle = "hsl(" + el.hue + "," + this.rainbowSaturation + "%," + this.rainbowLightness + "%)";
         else this.ctx.fillStyle = this.color;
-      } else if (this.style === "heart") {
-        var s = el.size * 3;
+      } else if (pStyle === "heart") {
+        var s = sz * 3;
         this.ctx.save();
         this.ctx.translate(el.x, el.y);
         this.ctx.beginPath();
@@ -217,9 +227,9 @@
       } else {
         var shape = this.shape;
         this.ctx.beginPath();
-        this.ctx.moveTo(el.x + shape[0].x * el.size, el.y + shape[0].y * el.size);
+        this.ctx.moveTo(el.x + shape[0].x * sz, el.y + shape[0].y * sz);
         for (var j = 1; j < shape.length; j++)
-          this.ctx.lineTo(el.x + shape[j].x * el.size, el.y + shape[j].y * el.size);
+          this.ctx.lineTo(el.x + shape[j].x * sz, el.y + shape[j].y * sz);
         this.ctx.closePath();
         this.ctx.fill();
       }
@@ -267,8 +277,8 @@
     }
   };
 
-  Star.prototype.draw = function (ctx, tempCtx, tempCanvas, color, glowColor, style) {
-    var s = this.size;
+  Star.prototype.draw = function (ctx, tempCtx, tempCanvas, color, glowColor, style, sizeScale) {
+    var s = this.size * (sizeScale || 1);
     var cx = tempCanvas.width / 2;
     var cy = tempCanvas.height / 2;
 
@@ -364,6 +374,7 @@
     this.rainbowSaturation = options.rainbowSaturation || 100;
     this.rainbowLightness = options.rainbowLightness || 65;
     this.style = options.style || "star";
+    this.sizeScale = options.sizeScale || 1;
     this.stars = [];
   }
 
@@ -429,11 +440,11 @@
           var hue = (baseHue + i * (360 / n)) % 360;
           var sc = "hsl(" + hue + "," + this.rainbowSaturation + "%," + this.rainbowLightness + "%)";
           var gc = "hsla(" + hue + "," + this.rainbowSaturation + "%," + Math.min(this.rainbowLightness + 10, 100) + "%,1)";
-          this.stars[i].draw(this.ctx, this.tempCtx, this.tempCanvas, sc, gc, this.style);
+          this.stars[i].draw(this.ctx, this.tempCtx, this.tempCanvas, sc, gc, this.style, this.sizeScale);
         }
       } else {
         for (var i = 0; i < this.stars.length; i++)
-          this.stars[i].draw(this.ctx, this.tempCtx, this.tempCanvas, this.starColor, this.glowColor, this.style);
+          this.stars[i].draw(this.ctx, this.tempCtx, this.tempCanvas, this.starColor, this.glowColor, this.style, this.sizeScale);
       }
       this.ctx.restore();
     }
@@ -776,7 +787,9 @@
       rainbowSpeed: cfg.rainbowSpeed,
       rainbowSaturation: cfg.rainbowSaturation,
       rainbowLightness: cfg.rainbowLightness,
-      style: cfg.trailStyle
+      style: cfg.trailStyle,
+      burstStyle: cfg.burstStyle || cfg.trailStyle,
+      sizeScale: (cfg.trailSize || 100) / 100
     });
 
     // Cursor stars
@@ -787,7 +800,8 @@
       rainbowSpeed: cfg.rainbowSpeed,
       rainbowSaturation: cfg.rainbowSaturation,
       rainbowLightness: cfg.rainbowLightness,
-      style: cfg.cursorStyle
+      style: cfg.cursorStyle,
+      sizeScale: (cfg.cursorSize || 100) / 100
     });
     state.cursorStars.generateStars(cfg.cursorStarCount);
 

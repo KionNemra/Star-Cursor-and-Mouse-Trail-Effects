@@ -320,6 +320,22 @@
     html.push('    </div>');
     html.push('  </div>');
 
+    html.push('  <div class="se-row">');
+    html.push('    <span class="se-label">\u62D6\u5C3E\u5927\u5C0F</span>');
+    html.push('    <div class="se-slider-wrap">');
+    html.push('      <input type="range" class="se-slider" id="se-trail-size" min="50" max="200" step="10" value="' + (cfg.trailSize || 100) + '">');
+    html.push('      <span class="se-slider-val" id="se-trail-size-val">' + (cfg.trailSize || 100) + '%</span>');
+    html.push('    </div>');
+    html.push('  </div>');
+
+    html.push('  <div class="se-row">');
+    html.push('    <span class="se-label">\u5149\u6807\u5927\u5C0F</span>');
+    html.push('    <div class="se-slider-wrap">');
+    html.push('      <input type="range" class="se-slider" id="se-cursor-size" min="50" max="200" step="10" value="' + (cfg.cursorSize || 100) + '">');
+    html.push('      <span class="se-slider-val" id="se-cursor-size-val">' + (cfg.cursorSize || 100) + '%</span>');
+    html.push('    </div>');
+    html.push('  </div>');
+
     html.push('</div>');
 
     // ── Shape section ──
@@ -364,6 +380,15 @@
     html.push('    <div class="se-slider-wrap">');
     html.push('      <input type="range" class="se-slider" id="se-burst-count" min="4" max="30" value="' + cfg.clickBurstCount + '">');
     html.push('      <span class="se-slider-val" id="se-burst-count-val">' + cfg.clickBurstCount + '</span>');
+    html.push('    </div>');
+    html.push('  </div>');
+
+    html.push('  <div class="se-row" id="se-row-burst-shape"' + (!cfg.clickBurst ? ' style="opacity:0.4;pointer-events:none"' : '') + '>');
+    html.push('    <span class="se-label">\u7206\u53D1\u5F62\u72B6</span>');
+    html.push('    <div class="se-shape-group" id="se-burst-shape">');
+    html.push('      <button class="se-shape-btn' + ((cfg.burstStyle || "star") === "star" ? ' se-active' : '') + '" data-val="star">\u2605 \u661F\u661F</button>');
+    html.push('      <button class="se-shape-btn' + ((cfg.burstStyle || "star") === "bubble" ? ' se-active' : '') + '" data-val="bubble">\u25CB \u6CE1\u6CE1</button>');
+    html.push('      <button class="se-shape-btn' + ((cfg.burstStyle || "star") === "heart" ? ' se-active' : '') + '" data-val="heart">\u2665 \u7231\u5FC3</button>');
     html.push('    </div>');
     html.push('  </div>');
 
@@ -432,6 +457,12 @@
     var $cursorCount = panel.querySelector("#se-cursor-count");
     var $cursorCountVal = panel.querySelector("#se-cursor-count-val");
 
+    // Size
+    var $trailSize = panel.querySelector("#se-trail-size");
+    var $trailSizeVal = panel.querySelector("#se-trail-size-val");
+    var $cursorSize = panel.querySelector("#se-cursor-size");
+    var $cursorSizeVal = panel.querySelector("#se-cursor-size-val");
+
     // Shapes
     var $trailShapeGroup = panel.querySelector("#se-trail-shape");
     var $cursorShapeGroup = panel.querySelector("#se-cursor-shape");
@@ -441,6 +472,8 @@
     var $burstCountRow = panel.querySelector("#se-row-burst-count");
     var $burstCount = panel.querySelector("#se-burst-count");
     var $burstCountVal = panel.querySelector("#se-burst-count-val");
+    var $burstShapeRow = panel.querySelector("#se-row-burst-shape");
+    var $burstShapeGroup = panel.querySelector("#se-burst-shape");
 
     // Cursor file
     var $cursorFile = panel.querySelector("#se-cursor-file");
@@ -532,14 +565,22 @@
       $cursorCount.value = s.cursorStarCount;
       $cursorCountVal.textContent = s.cursorStarCount;
 
+      $trailSize.value = s.trailSize || 100;
+      $trailSizeVal.textContent = (s.trailSize || 100) + "%";
+      $cursorSize.value = s.cursorSize || 100;
+      $cursorSizeVal.textContent = (s.cursorSize || 100) + "%";
+
       setShapeActive($trailShapeGroup, s.trailStyle);
       setShapeActive($cursorShapeGroup, s.cursorStyle);
 
       $burst.checked = s.clickBurst;
       $burstCountRow.style.opacity = s.clickBurst ? "" : "0.4";
       $burstCountRow.style.pointerEvents = s.clickBurst ? "" : "none";
+      $burstShapeRow.style.opacity = s.clickBurst ? "" : "0.4";
+      $burstShapeRow.style.pointerEvents = s.clickBurst ? "" : "none";
       $burstCount.value = s.clickBurstCount;
       $burstCountVal.textContent = s.clickBurstCount;
+      setShapeActive($burstShapeGroup, s.burstStyle || "star");
 
       $cursorFile.value = s.cursor || "";
     }
@@ -626,6 +667,20 @@
       applyDebounced();
     });
 
+    // Trail size
+    $trailSize.addEventListener("input", function () {
+      live.trailSize = parseInt(this.value, 10);
+      $trailSizeVal.textContent = this.value + "%";
+      applyDebounced();
+    });
+
+    // Cursor size
+    $cursorSize.addEventListener("input", function () {
+      live.cursorSize = parseInt(this.value, 10);
+      $cursorSizeVal.textContent = this.value + "%";
+      applyDebounced();
+    });
+
     // Trail shape buttons
     $trailShapeGroup.addEventListener("click", function (e) {
       var btn = e.target.closest(".se-shape-btn");
@@ -649,6 +704,8 @@
       live.clickBurst = this.checked;
       $burstCountRow.style.opacity = this.checked ? "" : "0.4";
       $burstCountRow.style.pointerEvents = this.checked ? "" : "none";
+      $burstShapeRow.style.opacity = this.checked ? "" : "0.4";
+      $burstShapeRow.style.pointerEvents = this.checked ? "" : "none";
       apply();
     });
 
@@ -657,6 +714,15 @@
       live.clickBurstCount = parseInt(this.value, 10);
       $burstCountVal.textContent = this.value;
       applyDebounced();
+    });
+
+    // Burst shape buttons
+    $burstShapeGroup.addEventListener("click", function (e) {
+      var btn = e.target.closest(".se-shape-btn");
+      if (!btn) return;
+      live.burstStyle = btn.getAttribute("data-val");
+      setShapeActive($burstShapeGroup, live.burstStyle);
+      apply();
     });
 
     // Cursor file select
