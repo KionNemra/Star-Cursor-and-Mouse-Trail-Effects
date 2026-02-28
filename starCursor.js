@@ -53,6 +53,8 @@ class StarCursor {
     this.rainbowSaturation = options.rainbowSaturation || 100;
     this.rainbowLightness = options.rainbowLightness || 65;
 
+    this.style = options.style || "star";
+
     this.stars = [];
   }
 
@@ -126,11 +128,11 @@ class StarCursor {
           var hue = (baseHue + i * (360 / starCount)) % 360;
           var sc = "hsl(" + hue + "," + this.rainbowSaturation + "%," + this.rainbowLightness + "%)";
           var gc = "hsla(" + hue + "," + this.rainbowSaturation + "%," + Math.min(this.rainbowLightness + 10, 100) + "%,1)";
-          this.stars[i].draw(this.ctx, this.tempCtx, this.tempCanvas, sc, gc);
+          this.stars[i].draw(this.ctx, this.tempCtx, this.tempCanvas, sc, gc, this.style);
         }
       } else {
         for (var i = 0; i < this.stars.length; i++) {
-          this.stars[i].draw(this.ctx, this.tempCtx, this.tempCanvas, this.starColor, this.glowColor);
+          this.stars[i].draw(this.ctx, this.tempCtx, this.tempCanvas, this.starColor, this.glowColor, this.style);
         }
       }
 
@@ -167,7 +169,7 @@ class Star {
     }
   }
 
-  draw(ctx, tempCtx, tempCanvas, color, glowColor) {
+  draw(ctx, tempCtx, tempCanvas, color, glowColor, style) {
     const s = this.size;
     const cx = tempCanvas.width / 2;
     const cy = tempCanvas.height / 2;
@@ -188,14 +190,42 @@ class Star {
     ctx.drawImage(tempCanvas, this.x - cx, this.y - cy);
     ctx.restore();
 
-    // Draw star shape
-    ctx.beginPath();
-    ctx.moveTo(this.x + STAR_POINTS[0].x * s, this.y + STAR_POINTS[0].y * s);
-    for (let i = 1; i < STAR_POINTS.length; i++) {
-      ctx.lineTo(this.x + STAR_POINTS[i].x * s, this.y + STAR_POINTS[i].y * s);
+    // Draw shape based on style
+    if (style === "bubble") {
+      ctx.beginPath();
+      ctx.arc(this.x, this.y, s * 4, 0, Math.PI * 2);
+      ctx.fillStyle = color;
+      ctx.fill();
+      // glossy highlight
+      ctx.save();
+      ctx.globalAlpha = ctx.globalAlpha * 0.4;
+      ctx.fillStyle = "#ffffff";
+      ctx.beginPath();
+      ctx.arc(this.x - s * 1.2, this.y - s * 1.2, s * 1.2, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    } else if (style === "heart") {
+      var hs = s * 3;
+      ctx.save();
+      ctx.translate(this.x, this.y);
+      ctx.beginPath();
+      ctx.moveTo(0, hs * 0.3);
+      ctx.bezierCurveTo(-hs, -hs * 0.6, -hs * 0.5, -hs * 1.2, 0, -hs * 0.5);
+      ctx.bezierCurveTo(hs * 0.5, -hs * 1.2, hs, -hs * 0.6, 0, hs * 0.3);
+      ctx.closePath();
+      ctx.fillStyle = color;
+      ctx.fill();
+      ctx.restore();
+    } else {
+      // Default star shape
+      ctx.beginPath();
+      ctx.moveTo(this.x + STAR_POINTS[0].x * s, this.y + STAR_POINTS[0].y * s);
+      for (let i = 1; i < STAR_POINTS.length; i++) {
+        ctx.lineTo(this.x + STAR_POINTS[i].x * s, this.y + STAR_POINTS[i].y * s);
+      }
+      ctx.closePath();
+      ctx.fillStyle = color;
+      ctx.fill();
     }
-    ctx.closePath();
-    ctx.fillStyle = color;
-    ctx.fill();
   }
 }
