@@ -9,22 +9,20 @@
 (function () {
   "use strict";
 
-  // Wait for runtime API AND document.body
+  // Wait for runtime API AND document.body to be available
   function waitForReady(cb) {
     function check() { return window.StarEffectsRuntime && document.body; }
     if (check()) return cb();
-    // If DOM isn't ready yet, wait for DOMContentLoaded first
-    if (!document.body) {
-      document.addEventListener("DOMContentLoaded", function () {
-        if (check()) return cb();
-        var t = setInterval(function () {
-          if (check()) { clearInterval(t); cb(); }
-        }, 50);
-      });
+    function poll() {
+      if (check()) return cb();
+      setTimeout(poll, 50);
+    }
+    // If DOM is still loading, wait for DOMContentLoaded then poll;
+    // otherwise DOMContentLoaded already fired, so just poll directly.
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", poll);
     } else {
-      var t = setInterval(function () {
-        if (check()) { clearInterval(t); cb(); }
-      }, 50);
+      poll();
     }
   }
 
