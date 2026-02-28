@@ -42,6 +42,7 @@
     trailSize: 100,            // trail particle size scale (50-200 %)
     cursorSize: 100,           // cursor star size scale   (50-200 %)
     cursorSpread: 20,          // cursor star spread range (10-100 px)
+    cursorWander: false,       // particles drift to random positions within spread
     cursor: ""                 // filename like "cyan.ani", "" = browser default
   };
 
@@ -112,14 +113,16 @@
       }
       return { x: 0, y: 0 };
     }
-    // star
+    // star – distribute along perimeter so shape is recognizable at any spread
     var verts = starVertices(spread);
-    for (var n = 0; n < 200; n++) {
-      px = (Math.random() - 0.5) * 2 * spread;
-      py = (Math.random() - 0.5) * 2 * spread;
-      if (pointInPolygon(px, py, verts)) return { x: px, y: py };
-    }
-    return { x: 0, y: 0 };
+    var edgeIndex = Math.floor(Math.random() * verts.length);
+    var nextIndex = (edgeIndex + 1) % verts.length;
+    t = Math.random();
+    px = verts[edgeIndex].x + t * (verts[nextIndex].x - verts[edgeIndex].x);
+    py = verts[edgeIndex].y + t * (verts[nextIndex].y - verts[edgeIndex].y);
+    // slight inward jitter for natural look (0-15% toward center)
+    var jitter = Math.random() * 0.15;
+    return { x: px * (1 - jitter), y: py * (1 - jitter) };
   }
 
   // ═══════════════════════════════════════════
@@ -536,7 +539,9 @@
     this.style = options.style || "star";
     this.sizeScale = options.sizeScale || 1;
     this.spread = options.spread || 20;
+    this.wander = options.wander || false;
     this.stars = [];
+    this._wasStopped = false;
   }
 
   StarCursor.prototype._setupCanvas = function () {
@@ -556,6 +561,18 @@
   };
 
   StarCursor.prototype.addStar = function (star) { this.stars.push(star); };
+
+  StarCursor.prototype._reshuffleOffsets = function () {
+    var spreadStyle = this.style === "random" ? "bubble" : this.style;
+    for (var i = 0; i < this.stars.length; i++) {
+      var pt = randomPointInShape(spreadStyle, this.spread);
+      this.stars[i].offsetX = Math.round(pt.x);
+      this.stars[i].offsetY = Math.round(pt.y);
+      if (this.style === "random") {
+        this.stars[i].resolvedStyle = resolveStyle(this.style);
+      }
+    }
+  };
 
   StarCursor.prototype.generateStars = function (count) {
     this.stars = [];
@@ -578,11 +595,32 @@
   StarCursor.prototype.update = function (timestamp) {
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
     if (this.mouseStopped) {
+      // Re-randomize offsets each time mouse stops (new pattern every hover)
+      if (!this._wasStopped) {
+        this._reshuffleOffsets();
+        this._wasStopped = true;
+      }
       this.opacity = Math.min(1, this.opacity + this.fadeInSpeed);
     } else {
+      this._wasStopped = false;
       this.opacity = Math.max(0, this.opacity - this.fadeOutSpeed);
     }
     if (this.opacity > 0) {
+      // Wander: particles smoothly drift to new random positions
+      if (this.wander && this.mouseStopped) {
+        var spreadStyle = this.style === "random" ? "bubble" : this.style;
+        for (var i = 0; i < this.stars.length; i++) {
+          var star = this.stars[i];
+          if (!star._wanderTarget || timestamp - (star._lastWanderTime || 0) > (star._wanderInterval || 0)) {
+            var pt = randomPointInShape(spreadStyle, this.spread);
+            star._wanderTarget = { x: pt.x, y: pt.y };
+            star._lastWanderTime = timestamp;
+            star._wanderInterval = 800 + Math.random() * 2000;
+          }
+          star.offsetX += (star._wanderTarget.x - star.offsetX) * 0.03;
+          star.offsetY += (star._wanderTarget.y - star.offsetY) * 0.03;
+        }
+      }
       for (var i = 0; i < this.stars.length; i++)
         this.stars[i].update(this.mouseX, this.mouseY, timestamp);
 
@@ -962,7 +1000,8 @@
       rainbowLightness: cfg.rainbowLightness,
       style: cfg.cursorStyle,
       sizeScale: (cfg.cursorSize || 100) / 100,
-      spread: cfg.cursorSpread || 20
+      spread: cfg.cursorSpread || 20,
+      wander: cfg.cursorWander || false
     });
     state.cursorStars.generateStars(cfg.cursorStarCount);
 

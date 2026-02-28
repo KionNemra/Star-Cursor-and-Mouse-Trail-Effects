@@ -332,6 +332,15 @@
     html.push('  </div>');
 
     html.push('  <div class="se-row">');
+    html.push('    <span class="se-label">\u7C92\u5B50\u6F2B\u6E38</span>');
+    html.push('    <label class="se-toggle">');
+    html.push('      <input type="checkbox" id="se-wander" ' + (cfg.cursorWander ? 'checked' : '') + '>');
+    html.push('      <span class="se-toggle-track"></span>');
+    html.push('      <span class="se-toggle-knob"></span>');
+    html.push('    </label>');
+    html.push('  </div>');
+
+    html.push('  <div class="se-row">');
     html.push('    <span class="se-label">\u62D6\u5C3E\u65F6\u957F</span>');
     html.push('    <div class="se-slider-wrap">');
     html.push('      <input type="range" class="se-slider" id="se-trail-lifetime" min="300" max="5000" step="100" value="' + (cfg.trailLifetime || 1000) + '">');
@@ -483,6 +492,9 @@
     var $burstLifetime = panel.querySelector("#se-burst-lifetime");
     var $burstLifetimeVal = panel.querySelector("#se-burst-lifetime-val");
 
+    // Wander
+    var $wander = panel.querySelector("#se-wander");
+
     // Shapes
     var $trailShapeGroup = panel.querySelector("#se-trail-shape");
     var $cursorShapeGroup = panel.querySelector("#se-cursor-shape");
@@ -588,6 +600,7 @@
         trailSize: (Math.floor(Math.random() * 16) + 5) * 10,
         cursorSize: (Math.floor(Math.random() * 16) + 5) * 10,
         cursorSpread: Math.floor(Math.random() * 91) + 10,
+        cursorWander: Math.random() < 0.4,
         trailLifetime: (Math.floor(Math.random() * 48) + 3) * 100,
         burstLifetime: (Math.floor(Math.random() * 48) + 3) * 100,
         cursor: ""
@@ -621,6 +634,8 @@
 
       $cursorSpread.value = s.cursorSpread || 20;
       $cursorSpreadVal.textContent = (s.cursorSpread || 20) + "px";
+
+      $wander.checked = !!s.cursorWander;
 
       $trailLifetime.value = s.trailLifetime || 1000;
       $trailLifetimeVal.textContent = ((s.trailLifetime || 1000) / 1000).toFixed(1) + "s";
@@ -739,6 +754,12 @@
       live.cursorSpread = parseInt(this.value, 10);
       $cursorSpreadVal.textContent = this.value + "px";
       applyDebounced();
+    });
+
+    // Cursor wander
+    $wander.addEventListener("change", function () {
+      live.cursorWander = this.checked;
+      apply();
     });
 
     // Trail lifetime
