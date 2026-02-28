@@ -5,6 +5,7 @@ class MouseTrail {
     this.canvas = document.getElementById(canvasId);
     this.ctx = this.canvas.getContext('2d');
     this.shape = shape;
+    this.style = options.style || "star";
     this.trail = [];
     this.maxSquares = options.maxSquares || 20;
     this.minDistance = options.minDistance || 20;
@@ -128,13 +129,40 @@ class MouseTrail {
         this.ctx.fillStyle = "hsl(" + el.hue + "," + this.rainbowSaturation + "%," + this.rainbowLightness + "%)";
       }
 
-      this.ctx.beginPath();
-      this.ctx.moveTo(el.x + this.shape[0].x * el.size, el.y + this.shape[0].y * el.size);
-      for (let j = 1; j < this.shape.length; j++) {
-        this.ctx.lineTo(el.x + this.shape[j].x * el.size, el.y + this.shape[j].y * el.size);
+      if (this.style === "bubble") {
+        this.ctx.beginPath();
+        this.ctx.arc(el.x, el.y, el.size * 4, 0, Math.PI * 2);
+        this.ctx.fill();
+        // highlight for glossy bubble look
+        this.ctx.save();
+        this.ctx.globalAlpha = alpha * 0.4;
+        this.ctx.fillStyle = "#ffffff";
+        this.ctx.beginPath();
+        this.ctx.arc(el.x - el.size * 1.2, el.y - el.size * 1.2, el.size * 1.2, 0, Math.PI * 2);
+        this.ctx.fill();
+        this.ctx.restore();
+        if (isRainbow) this.ctx.fillStyle = "hsl(" + el.hue + "," + this.rainbowSaturation + "%," + this.rainbowLightness + "%)";
+        else this.ctx.fillStyle = this.color;
+      } else if (this.style === "heart") {
+        var s = el.size * 3;
+        this.ctx.save();
+        this.ctx.translate(el.x, el.y);
+        this.ctx.beginPath();
+        this.ctx.moveTo(0, s * 0.3);
+        this.ctx.bezierCurveTo(-s, -s * 0.6, -s * 0.5, -s * 1.2, 0, -s * 0.5);
+        this.ctx.bezierCurveTo(s * 0.5, -s * 1.2, s, -s * 0.6, 0, s * 0.3);
+        this.ctx.closePath();
+        this.ctx.fill();
+        this.ctx.restore();
+      } else {
+        this.ctx.beginPath();
+        this.ctx.moveTo(el.x + this.shape[0].x * el.size, el.y + this.shape[0].y * el.size);
+        for (let j = 1; j < this.shape.length; j++) {
+          this.ctx.lineTo(el.x + this.shape[j].x * el.size, el.y + this.shape[j].y * el.size);
+        }
+        this.ctx.closePath();
+        this.ctx.fill();
       }
-      this.ctx.closePath();
-      this.ctx.fill();
     }
     this.ctx.globalAlpha = 1;
   }

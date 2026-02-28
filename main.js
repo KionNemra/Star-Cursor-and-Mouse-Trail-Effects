@@ -13,6 +13,7 @@ var trail = new MouseTrail('curs_canv', {
   rainbowSpeed: config.rainbowSpeed,
   rainbowSaturation: config.rainbowSaturation,
   rainbowLightness: config.rainbowLightness,
+  style: config.trailStyle,
 });
 
 window.addEventListener('mousemove', function (e) {
@@ -38,6 +39,7 @@ var cursor = new StarCursor('curs_canv2', {
   rainbowSpeed: config.rainbowSpeed,
   rainbowSaturation: config.rainbowSaturation,
   rainbowLightness: config.rainbowLightness,
+  style: config.cursorStyle,
 });
 
 cursor.generateStars(config.cursorStarCount);

@@ -35,6 +35,10 @@
     clickBurst: false,         // whether clicking spawns a burst of particles
     clickBurstCount: 12,       // particles per click burst
 
+    // --- Shape styles ---
+    trailStyle: "star",        // trail particle shape: "star" | "bubble" | "heart"
+    cursorStyle: "star",       // cursor star shape:    "star" | "bubble" | "heart"
+
     // --- Custom cursor ---
     cursor: null,              // path to .cur or .ani file, null = browser default
   };
