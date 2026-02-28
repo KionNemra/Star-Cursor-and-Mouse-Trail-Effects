@@ -9,15 +9,26 @@
 (function () {
   "use strict";
 
-  // Wait for runtime API
-  function waitForRuntime(cb) {
-    if (window.StarEffectsRuntime) return cb();
-    var t = setInterval(function () {
-      if (window.StarEffectsRuntime) { clearInterval(t); cb(); }
-    }, 50);
+  // Wait for runtime API AND document.body
+  function waitForReady(cb) {
+    function check() { return window.StarEffectsRuntime && document.body; }
+    if (check()) return cb();
+    // If DOM isn't ready yet, wait for DOMContentLoaded first
+    if (!document.body) {
+      document.addEventListener("DOMContentLoaded", function () {
+        if (check()) return cb();
+        var t = setInterval(function () {
+          if (check()) { clearInterval(t); cb(); }
+        }, 50);
+      });
+    } else {
+      var t = setInterval(function () {
+        if (check()) { clearInterval(t); cb(); }
+      }, 50);
+    }
   }
 
-  waitForRuntime(function () {
+  waitForReady(function () {
     var R = window.StarEffectsRuntime;
 
     // ═══════════════════════════════════════
