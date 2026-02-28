@@ -216,7 +216,7 @@
     var gearBtn = document.createElement("button");
     gearBtn.id = "se-gear-btn";
     gearBtn.innerHTML = "&#9881;"; // ⚙
-    gearBtn.title = "\u9F20\u6807\u7279\u6548\u8BBE\u7F6E";
+    gearBtn.title = "Mouse Effect Settings";
     if (cfg._disabled) gearBtn.className = "se-gear-off";
     document.body.appendChild(gearBtn);
 
@@ -235,50 +235,50 @@
 
     // Header
     html.push('<div class="se-header">');
-    html.push('  <h3>\u2728 \u9F20\u6807\u7279\u6548\u8BBE\u7F6E</h3>');
+    html.push('  <h3>\u2728 Mouse Effect Settings</h3>');
     html.push('  <button class="se-close-btn" id="se-close">&times;</button>');
     html.push('</div>');
 
     // ── Color section ──
     html.push('<div class="se-section">');
-    html.push('  <div class="se-section-title">\u989C\u8272\u8BBE\u7F6E</div>');
+    html.push('  <div class="se-section-title">Color</div>');
 
     // Color mode
     html.push('  <div class="se-row">');
-    html.push('    <span class="se-label">\u989C\u8272\u6A21\u5F0F</span>');
+    html.push('    <span class="se-label">Color Mode</span>');
     html.push('    <div class="se-radio-group">');
-    html.push('      <button class="se-radio-btn' + (cfg.colorMode === "fixed" ? ' se-active' : '') + '" data-mode="fixed">\u56FA\u5B9A\u8272</button>');
-    html.push('      <button class="se-radio-btn' + (cfg.colorMode === "rainbow" ? ' se-active' : '') + '" data-mode="rainbow">\u5F69\u8679</button>');
+    html.push('      <button class="se-radio-btn' + (cfg.colorMode === "fixed" ? ' se-active' : '') + '" data-mode="fixed">Fixed</button>');
+    html.push('      <button class="se-radio-btn' + (cfg.colorMode === "rainbow" ? ' se-active' : '') + '" data-mode="rainbow">Rainbow</button>');
     html.push('    </div>');
     html.push('  </div>');
 
     // Fixed color
     html.push('  <div class="se-row se-show-fixed' + (cfg.colorMode !== "fixed" ? ' se-hidden' : '') + '" id="se-row-color">');
-    html.push('    <span class="se-label">\u7C92\u5B50\u989C\u8272</span>');
+    html.push('    <span class="se-label">Particle Color</span>');
     html.push('    <input type="color" class="se-color-input" id="se-color" value="' + cfg.color + '">');
     html.push('  </div>');
     html.push('  <div class="se-row se-show-fixed' + (cfg.colorMode !== "fixed" ? ' se-hidden' : '') + '" id="se-row-glow">');
-    html.push('    <span class="se-label">\u8F89\u5149\u989C\u8272</span>');
+    html.push('    <span class="se-label">Glow Color</span>');
     html.push('    <input type="color" class="se-color-input" id="se-glow" value="' + cfg.glowColor.substring(0, 7) + '">');
     html.push('  </div>');
 
     // Rainbow settings
     html.push('  <div class="se-row se-show-rainbow' + (cfg.colorMode !== "rainbow" ? ' se-hidden' : '') + '" id="se-row-rspeed">');
-    html.push('    <span class="se-label">\u5F69\u8679\u901F\u5EA6</span>');
+    html.push('    <span class="se-label">Rainbow Speed</span>');
     html.push('    <div class="se-slider-wrap">');
     html.push('      <input type="range" class="se-slider" id="se-rspeed" min="1" max="20" value="' + cfg.rainbowSpeed + '">');
     html.push('      <span class="se-slider-val" id="se-rspeed-val">' + cfg.rainbowSpeed + '</span>');
     html.push('    </div>');
     html.push('  </div>');
     html.push('  <div class="se-row se-show-rainbow' + (cfg.colorMode !== "rainbow" ? ' se-hidden' : '') + '" id="se-row-rsat">');
-    html.push('    <span class="se-label">\u5F69\u8679\u9971\u548C</span>');
+    html.push('    <span class="se-label">Saturation</span>');
     html.push('    <div class="se-slider-wrap">');
     html.push('      <input type="range" class="se-slider" id="se-rsat" min="0" max="100" value="' + cfg.rainbowSaturation + '">');
     html.push('      <span class="se-slider-val" id="se-rsat-val">' + cfg.rainbowSaturation + '%</span>');
     html.push('    </div>');
     html.push('  </div>');
     html.push('  <div class="se-row se-show-rainbow' + (cfg.colorMode !== "rainbow" ? ' se-hidden' : '') + '" id="se-row-rlight">');
-    html.push('    <span class="se-label">\u5F69\u8679\u4EAE\u5EA6</span>');
+    html.push('    <span class="se-label">Lightness</span>');
     html.push('    <div class="se-slider-wrap">');
     html.push('      <input type="range" class="se-slider" id="se-rlight" min="10" max="90" value="' + cfg.rainbowLightness + '">');
     html.push('      <span class="se-slider-val" id="se-rlight-val">' + cfg.rainbowLightness + '%</span>');
@@ -289,10 +289,10 @@
 
     // ── Particle section ──
     html.push('<div class="se-section">');
-    html.push('  <div class="se-section-title">\u7C92\u5B50\u8BBE\u7F6E</div>');
+    html.push('  <div class="se-section-title">Particles</div>');
 
     html.push('  <div class="se-row">');
-    html.push('    <span class="se-label">\u62D6\u5C3E\u6570\u91CF</span>');
+    html.push('    <span class="se-label">Trail Count</span>');
     html.push('    <div class="se-slider-wrap">');
     html.push('      <input type="range" class="se-slider" id="se-trail-count" min="5" max="120" value="' + cfg.trailMaxCount + '">');
     html.push('      <span class="se-slider-val" id="se-trail-count-val">' + cfg.trailMaxCount + '</span>');
@@ -300,7 +300,7 @@
     html.push('  </div>');
 
     html.push('  <div class="se-row">');
-    html.push('    <span class="se-label">\u5149\u6807\u661F\u6570</span>');
+    html.push('    <span class="se-label">Cursor Stars</span>');
     html.push('    <div class="se-slider-wrap">');
     html.push('      <input type="range" class="se-slider" id="se-cursor-count" min="1" max="20" value="' + cfg.cursorStarCount + '">');
     html.push('      <span class="se-slider-val" id="se-cursor-count-val">' + cfg.cursorStarCount + '</span>');
@@ -308,7 +308,7 @@
     html.push('  </div>');
 
     html.push('  <div class="se-row">');
-    html.push('    <span class="se-label">\u62D6\u5C3E\u5927\u5C0F</span>');
+    html.push('    <span class="se-label">Trail Size</span>');
     html.push('    <div class="se-slider-wrap">');
     html.push('      <input type="range" class="se-slider" id="se-trail-size" min="50" max="200" step="10" value="' + (cfg.trailSize || 100) + '">');
     html.push('      <span class="se-slider-val" id="se-trail-size-val">' + (cfg.trailSize || 100) + '%</span>');
@@ -316,7 +316,7 @@
     html.push('  </div>');
 
     html.push('  <div class="se-row">');
-    html.push('    <span class="se-label">\u5149\u6807\u5927\u5C0F</span>');
+    html.push('    <span class="se-label">Cursor Size</span>');
     html.push('    <div class="se-slider-wrap">');
     html.push('      <input type="range" class="se-slider" id="se-cursor-size" min="50" max="200" step="10" value="' + (cfg.cursorSize || 100) + '">');
     html.push('      <span class="se-slider-val" id="se-cursor-size-val">' + (cfg.cursorSize || 100) + '%</span>');
@@ -324,7 +324,7 @@
     html.push('  </div>');
 
     html.push('  <div class="se-row">');
-    html.push('    <span class="se-label">\u5149\u6807\u8303\u56F4</span>');
+    html.push('    <span class="se-label">Cursor Spread</span>');
     html.push('    <div class="se-slider-wrap">');
     html.push('      <input type="range" class="se-slider" id="se-cursor-spread" min="10" max="100" value="' + (cfg.cursorSpread || 20) + '">');
     html.push('      <span class="se-slider-val" id="se-cursor-spread-val">' + (cfg.cursorSpread || 20) + 'px</span>');
@@ -332,7 +332,7 @@
     html.push('  </div>');
 
     html.push('  <div class="se-row">');
-    html.push('    <span class="se-label">\u7C92\u5B50\u6F2B\u6E38</span>');
+    html.push('    <span class="se-label">Wander</span>');
     html.push('    <label class="se-toggle">');
     html.push('      <input type="checkbox" id="se-wander" ' + (cfg.cursorWander ? 'checked' : '') + '>');
     html.push('      <span class="se-toggle-track"></span>');
@@ -341,7 +341,7 @@
     html.push('  </div>');
 
     html.push('  <div class="se-row">');
-    html.push('    <span class="se-label">\u62D6\u5C3E\u65F6\u957F</span>');
+    html.push('    <span class="se-label">Trail Life</span>');
     html.push('    <div class="se-slider-wrap">');
     html.push('      <input type="range" class="se-slider" id="se-trail-lifetime" min="300" max="5000" step="100" value="' + (cfg.trailLifetime || 1000) + '">');
     html.push('      <span class="se-slider-val" id="se-trail-lifetime-val">' + ((cfg.trailLifetime || 1000) / 1000).toFixed(1) + 's</span>');
@@ -349,7 +349,7 @@
     html.push('  </div>');
 
     html.push('  <div class="se-row">');
-    html.push('    <span class="se-label">\u7206\u53D1\u65F6\u957F</span>');
+    html.push('    <span class="se-label">Burst Life</span>');
     html.push('    <div class="se-slider-wrap">');
     html.push('      <input type="range" class="se-slider" id="se-burst-lifetime" min="300" max="5000" step="100" value="' + (cfg.burstLifetime || 1000) + '">');
     html.push('      <span class="se-slider-val" id="se-burst-lifetime-val">' + ((cfg.burstLifetime || 1000) / 1000).toFixed(1) + 's</span>');
@@ -360,29 +360,29 @@
 
     // ── Shape section ──
     html.push('<div class="se-section">');
-    html.push('  <div class="se-section-title">\u5F62\u72B6\u6837\u5F0F</div>');
+    html.push('  <div class="se-section-title">Shapes</div>');
 
     // Helper to build shape buttons with 4th "random" option
     function shapeButtons(id, current) {
       var h = '';
       h += '    <div class="se-shape-group" id="' + id + '">';
-      h += '      <button class="se-shape-btn' + (current === "star" ? ' se-active' : '') + '" data-val="star">\u2605 \u661F\u661F</button>';
-      h += '      <button class="se-shape-btn' + (current === "bubble" ? ' se-active' : '') + '" data-val="bubble">\u25CB \u6CE1\u6CE1</button>';
-      h += '      <button class="se-shape-btn' + (current === "heart" ? ' se-active' : '') + '" data-val="heart">\u2665 \u7231\u5FC3</button>';
-      h += '      <button class="se-shape-btn' + (current === "flower" ? ' se-active' : '') + '" data-val="flower">\u273F \u82B1\u6735</button>';
-      h += '      <button class="se-shape-btn' + (current === "flame" ? ' se-active' : '') + '" data-val="flame">\u2604 \u706B\u7130</button>';
-      h += '      <button class="se-shape-btn' + (current === "random" ? ' se-active' : '') + '" data-val="random">\u2732 \u968F\u673A</button>';
+      h += '      <button class="se-shape-btn' + (current === "star" ? ' se-active' : '') + '" data-val="star">\u2605 Star</button>';
+      h += '      <button class="se-shape-btn' + (current === "bubble" ? ' se-active' : '') + '" data-val="bubble">\u25CB Bubble</button>';
+      h += '      <button class="se-shape-btn' + (current === "heart" ? ' se-active' : '') + '" data-val="heart">\u2665 Heart</button>';
+      h += '      <button class="se-shape-btn' + (current === "flower" ? ' se-active' : '') + '" data-val="flower">\u273F Flower</button>';
+      h += '      <button class="se-shape-btn' + (current === "flame" ? ' se-active' : '') + '" data-val="flame">\u2604 Flame</button>';
+      h += '      <button class="se-shape-btn' + (current === "random" ? ' se-active' : '') + '" data-val="random">\u2732 Random</button>';
       h += '    </div>';
       return h;
     }
 
     html.push('  <div class="se-row">');
-    html.push('    <span class="se-label">\u62D6\u5C3E\u5F62\u72B6</span>');
+    html.push('    <span class="se-label">Trail Shape</span>');
     html.push(shapeButtons("se-trail-shape", cfg.trailStyle));
     html.push('  </div>');
 
     html.push('  <div class="se-row">');
-    html.push('    <span class="se-label">\u5149\u6807\u5F62\u72B6</span>');
+    html.push('    <span class="se-label">Cursor Shape</span>');
     html.push(shapeButtons("se-cursor-shape", cfg.cursorStyle));
     html.push('  </div>');
 
@@ -390,10 +390,10 @@
 
     // ── Click burst section ──
     html.push('<div class="se-section">');
-    html.push('  <div class="se-section-title">\u70B9\u51FB\u6548\u679C</div>');
+    html.push('  <div class="se-section-title">Click Effects</div>');
 
     html.push('  <div class="se-row">');
-    html.push('    <span class="se-label">\u70B9\u51FB\u7206\u53D1</span>');
+    html.push('    <span class="se-label">Click Burst</span>');
     html.push('    <label class="se-toggle">');
     html.push('      <input type="checkbox" id="se-burst" ' + (cfg.clickBurst ? 'checked' : '') + '>');
     html.push('      <span class="se-toggle-track"></span>');
@@ -402,7 +402,7 @@
     html.push('  </div>');
 
     html.push('  <div class="se-row" id="se-row-burst-count"' + (!cfg.clickBurst ? ' style="opacity:0.4;pointer-events:none"' : '') + '>');
-    html.push('    <span class="se-label">\u7206\u53D1\u6570\u91CF</span>');
+    html.push('    <span class="se-label">Burst Count</span>');
     html.push('    <div class="se-slider-wrap">');
     html.push('      <input type="range" class="se-slider" id="se-burst-count" min="4" max="60" value="' + cfg.clickBurstCount + '">');
     html.push('      <span class="se-slider-val" id="se-burst-count-val">' + cfg.clickBurstCount + '</span>');
@@ -410,7 +410,7 @@
     html.push('  </div>');
 
     html.push('  <div class="se-row" id="se-row-burst-shape"' + (!cfg.clickBurst ? ' style="opacity:0.4;pointer-events:none"' : '') + '>');
-    html.push('    <span class="se-label">\u7206\u53D1\u5F62\u72B6</span>');
+    html.push('    <span class="se-label">Burst Shape</span>');
     html.push(shapeButtons("se-burst-shape", cfg.burstStyle || "star"));
     html.push('  </div>');
 
@@ -418,16 +418,16 @@
 
     // ── Custom cursor section ──
     html.push('<div class="se-section">');
-    html.push('  <div class="se-section-title">\u81EA\u5B9A\u4E49\u5149\u6807</div>');
+    html.push('  <div class="se-section-title">Custom Cursor</div>');
 
     html.push('  <div class="se-row">');
-    html.push('    <span class="se-label">\u5149\u6807\u6587\u4EF6</span>');
+    html.push('    <span class="se-label">Cursor File</span>');
     html.push('    <select class="se-select" id="se-cursor-file">');
-    html.push('      <option value=""' + (!cfg.cursor ? ' selected' : '') + '>\u9ED8\u8BA4</option>');
+    html.push('      <option value=""' + (!cfg.cursor ? ' selected' : '') + '>Default</option>');
     var cursors = R.cursors || [];
     for (var i = 0; i < cursors.length; i++) {
       var c = cursors[i];
-      var label = c.replace(/\.\w+$/, "") + (c.endsWith(".ani") ? " (\u52A8\u753B)" : "");
+      var label = c.replace(/\.\w+$/, "") + (c.endsWith(".ani") ? " (Animated)" : "");
       html.push('      <option value="' + c + '"' + (cfg.cursor === c ? ' selected' : '') + '>' + label + '</option>');
     }
     html.push('    </select>');
@@ -436,9 +436,9 @@
 
     // Footer
     html.push('<div class="se-footer">');
-    html.push('  <button class="se-btn se-btn-off" id="se-kill">\u5B8C\u5168\u5173\u95ED\u7279\u6548</button>');
-    html.push('  <button class="se-btn se-btn-random" id="se-random">\u2732 \u5B8C\u5168\u968F\u673A</button>');
-    html.push('  <button class="se-btn se-btn-reset" id="se-reset">\u91CD\u7F6E\u9ED8\u8BA4</button>');
+    html.push('  <button class="se-btn se-btn-off" id="se-kill">Disable All</button>');
+    html.push('  <button class="se-btn se-btn-random" id="se-random">\u2732 Randomize</button>');
+    html.push('  <button class="se-btn se-btn-reset" id="se-reset">Reset</button>');
     html.push('</div>');
 
     panel.innerHTML = html.join("\n");
@@ -823,7 +823,7 @@
       apply();
     });
 
-    // "完全关闭特效" button — disable, save, close panel, dim gear
+    // "Disable All" button — disable, save, close panel, dim gear
     $kill.addEventListener("click", function () {
       live._disabled = true;
       apply();
@@ -831,7 +831,7 @@
       updateGearState(true);
     });
 
-    // "完全随机" button
+    // "Randomize" button
     $random.addEventListener("click", function () {
       live = generateRandomSettings();
       syncUI(live);
