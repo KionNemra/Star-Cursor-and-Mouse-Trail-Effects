@@ -36,8 +36,8 @@
     clickBurstCount: 12,       // particles per click burst
 
     // --- Shape styles ---
-    trailStyle: "star",        // trail particle shape: "star" | "bubble" | "heart"
-    cursorStyle: "star",       // cursor star shape:    "star" | "bubble" | "heart"
+    trailStyle: "star",        // trail particle shape: "star" | "bubble" | "heart" | "flower" | "flame"
+    cursorStyle: "star",       // cursor star shape:    "star" | "bubble" | "heart" | "flower" | "flame"
     burstStyle: "star",        // burst particle shape: "star" | "bubble" | "heart" | "flower" | "flame"
 
     // --- Lifetime ---
