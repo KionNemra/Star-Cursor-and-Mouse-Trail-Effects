@@ -14,6 +14,10 @@ var trail = new MouseTrail('curs_canv', {
   rainbowSaturation: config.rainbowSaturation,
   rainbowLightness: config.rainbowLightness,
   style: config.trailStyle,
+  burstStyle: config.burstStyle || config.trailStyle,
+  sizeScale: (config.trailSize || 100) / 100,
+  lifetime: config.trailLifetime || 1000,
+  burstLifetime: config.burstLifetime || 1000,
 });
 
 window.addEventListener('mousemove', function (e) {
@@ -40,6 +44,8 @@ var cursor = new StarCursor('curs_canv2', {
   rainbowSaturation: config.rainbowSaturation,
   rainbowLightness: config.rainbowLightness,
   style: config.cursorStyle,
+  sizeScale: (config.cursorSize || 100) / 100,
+  spread: config.cursorSpread || 20,
 });
 
 cursor.generateStars(config.cursorStarCount);
