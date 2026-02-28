@@ -34,7 +34,7 @@
     cursorStarCount: 3,
     clickBurst: false,
     clickBurstCount: 12,
-    trailStyle: "star",        // "star" | "bubble" | "heart"
+    trailStyle: "star",        // "star" | "bubble" | "heart" | "flower" | "flame"
     cursorStyle: "star",
     burstStyle: "star",        // "star" | "bubble" | "heart" | "flower" | "flame"
     trailLifetime: 1000,       // trail particle linger duration (300-5000 ms)
