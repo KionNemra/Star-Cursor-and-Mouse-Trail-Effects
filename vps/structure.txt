@@ -1,0 +1,10 @@
+.
+./index.html
+./tool
+./tool/text_tools
+./tool/text_tools/words transmits.html
+./tool/text_tools/Unicode decoration.html
+./tool/pic_tools
+./tool/pic_tools/PNG-Metadata-Editor-NovelAI.html
+./tool/pic_tools/picturewatermark.html
+./structure.txt
