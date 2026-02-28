@@ -150,7 +150,7 @@
       ".se-color-input::-moz-color-swatch { border: none; border-radius: 3px; }",
 
       // Radio group (shape selector)
-      ".se-shape-group { display: flex; gap: 4px; }",
+      ".se-shape-group { display: flex; gap: 4px; flex-wrap: wrap; }",
       ".se-shape-btn {",
       "  padding: 4px 10px; border-radius: 6px; border: 1px solid #444;",
       "  background: transparent; color: #bbb; cursor: pointer;",
@@ -178,7 +178,7 @@
 
       // Footer buttons
       ".se-footer {",
-      "  display: flex; justify-content: flex-end; gap: 8px;",
+      "  display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap;",
       "  padding: 12px 16px; border-top: 1px solid rgba(200,184,105,0.15);",
       "  position: sticky; bottom: 0; background: rgba(18,18,28,0.98);",
       "}",
@@ -192,6 +192,8 @@
       ".se-btn-primary:hover { background: rgba(200,184,105,0.35); }",
       ".se-btn-off { background: transparent; border-color: #664; color: #997; }",
       ".se-btn-off:hover { border-color: #996; color: #cc9; }",
+      ".se-btn-random { background: linear-gradient(135deg, rgba(255,100,100,0.15), rgba(100,100,255,0.15)); border-color: #a88; color: #daa; }",
+      ".se-btn-random:hover { background: linear-gradient(135deg, rgba(255,100,100,0.3), rgba(100,100,255,0.3)); border-color: #c99; color: #fcc; }",
 
       // Disabled state for sections
       ".se-disabled { opacity: 0.4; pointer-events: none; }",
@@ -236,21 +238,6 @@
     html.push('  <h3>\u2728 \u9F20\u6807\u7279\u6548\u8BBE\u7F6E</h3>');
     html.push('  <button class="se-close-btn" id="se-close">&times;</button>');
     html.push('</div>');
-
-    // Master toggle
-    html.push('<div class="se-section">');
-    html.push('  <div class="se-row">');
-    html.push('    <span class="se-label">\u603B\u5F00\u5173</span>');
-    html.push('    <label class="se-toggle">');
-    html.push('      <input type="checkbox" id="se-enabled" ' + (!cfg._disabled ? 'checked' : '') + '>');
-    html.push('      <span class="se-toggle-track"></span>');
-    html.push('      <span class="se-toggle-knob"></span>');
-    html.push('    </label>');
-    html.push('  </div>');
-    html.push('</div>');
-
-    // Content wrapper (disables when toggled off)
-    html.push('<div id="se-content">');
 
     // ── Color section ──
     html.push('<div class="se-section">');
@@ -307,7 +294,7 @@
     html.push('  <div class="se-row">');
     html.push('    <span class="se-label">\u62D6\u5C3E\u6570\u91CF</span>');
     html.push('    <div class="se-slider-wrap">');
-    html.push('      <input type="range" class="se-slider" id="se-trail-count" min="5" max="60" value="' + cfg.trailMaxCount + '">');
+    html.push('      <input type="range" class="se-slider" id="se-trail-count" min="5" max="120" value="' + cfg.trailMaxCount + '">');
     html.push('      <span class="se-slider-val" id="se-trail-count-val">' + cfg.trailMaxCount + '</span>');
     html.push('    </div>');
     html.push('  </div>');
@@ -315,7 +302,7 @@
     html.push('  <div class="se-row">');
     html.push('    <span class="se-label">\u5149\u6807\u661F\u6570</span>');
     html.push('    <div class="se-slider-wrap">');
-    html.push('      <input type="range" class="se-slider" id="se-cursor-count" min="1" max="10" value="' + cfg.cursorStarCount + '">');
+    html.push('      <input type="range" class="se-slider" id="se-cursor-count" min="1" max="20" value="' + cfg.cursorStarCount + '">');
     html.push('      <span class="se-slider-val" id="se-cursor-count-val">' + cfg.cursorStarCount + '</span>');
     html.push('    </div>');
     html.push('  </div>');
@@ -336,28 +323,40 @@
     html.push('    </div>');
     html.push('  </div>');
 
+    html.push('  <div class="se-row">');
+    html.push('    <span class="se-label">\u5149\u6807\u8303\u56F4</span>');
+    html.push('    <div class="se-slider-wrap">');
+    html.push('      <input type="range" class="se-slider" id="se-cursor-spread" min="10" max="100" value="' + (cfg.cursorSpread || 20) + '">');
+    html.push('      <span class="se-slider-val" id="se-cursor-spread-val">' + (cfg.cursorSpread || 20) + 'px</span>');
+    html.push('    </div>');
+    html.push('  </div>');
+
     html.push('</div>');
 
     // ── Shape section ──
     html.push('<div class="se-section">');
     html.push('  <div class="se-section-title">\u5F62\u72B6\u6837\u5F0F</div>');
 
+    // Helper to build shape buttons with 4th "random" option
+    function shapeButtons(id, current) {
+      var h = '';
+      h += '    <div class="se-shape-group" id="' + id + '">';
+      h += '      <button class="se-shape-btn' + (current === "star" ? ' se-active' : '') + '" data-val="star">\u2605 \u661F\u661F</button>';
+      h += '      <button class="se-shape-btn' + (current === "bubble" ? ' se-active' : '') + '" data-val="bubble">\u25CB \u6CE1\u6CE1</button>';
+      h += '      <button class="se-shape-btn' + (current === "heart" ? ' se-active' : '') + '" data-val="heart">\u2665 \u7231\u5FC3</button>';
+      h += '      <button class="se-shape-btn' + (current === "random" ? ' se-active' : '') + '" data-val="random">\u2732 \u968F\u673A</button>';
+      h += '    </div>';
+      return h;
+    }
+
     html.push('  <div class="se-row">');
     html.push('    <span class="se-label">\u62D6\u5C3E\u5F62\u72B6</span>');
-    html.push('    <div class="se-shape-group" id="se-trail-shape">');
-    html.push('      <button class="se-shape-btn' + (cfg.trailStyle === "star" ? ' se-active' : '') + '" data-val="star">\u2605 \u661F\u661F</button>');
-    html.push('      <button class="se-shape-btn' + (cfg.trailStyle === "bubble" ? ' se-active' : '') + '" data-val="bubble">\u25CB \u6CE1\u6CE1</button>');
-    html.push('      <button class="se-shape-btn' + (cfg.trailStyle === "heart" ? ' se-active' : '') + '" data-val="heart">\u2665 \u7231\u5FC3</button>');
-    html.push('    </div>');
+    html.push(shapeButtons("se-trail-shape", cfg.trailStyle));
     html.push('  </div>');
 
     html.push('  <div class="se-row">');
     html.push('    <span class="se-label">\u5149\u6807\u5F62\u72B6</span>');
-    html.push('    <div class="se-shape-group" id="se-cursor-shape">');
-    html.push('      <button class="se-shape-btn' + (cfg.cursorStyle === "star" ? ' se-active' : '') + '" data-val="star">\u2605 \u661F\u661F</button>');
-    html.push('      <button class="se-shape-btn' + (cfg.cursorStyle === "bubble" ? ' se-active' : '') + '" data-val="bubble">\u25CB \u6CE1\u6CE1</button>');
-    html.push('      <button class="se-shape-btn' + (cfg.cursorStyle === "heart" ? ' se-active' : '') + '" data-val="heart">\u2665 \u7231\u5FC3</button>');
-    html.push('    </div>');
+    html.push(shapeButtons("se-cursor-shape", cfg.cursorStyle));
     html.push('  </div>');
 
     html.push('</div>');
@@ -378,18 +377,14 @@
     html.push('  <div class="se-row" id="se-row-burst-count"' + (!cfg.clickBurst ? ' style="opacity:0.4;pointer-events:none"' : '') + '>');
     html.push('    <span class="se-label">\u7206\u53D1\u6570\u91CF</span>');
     html.push('    <div class="se-slider-wrap">');
-    html.push('      <input type="range" class="se-slider" id="se-burst-count" min="4" max="30" value="' + cfg.clickBurstCount + '">');
+    html.push('      <input type="range" class="se-slider" id="se-burst-count" min="4" max="60" value="' + cfg.clickBurstCount + '">');
     html.push('      <span class="se-slider-val" id="se-burst-count-val">' + cfg.clickBurstCount + '</span>');
     html.push('    </div>');
     html.push('  </div>');
 
     html.push('  <div class="se-row" id="se-row-burst-shape"' + (!cfg.clickBurst ? ' style="opacity:0.4;pointer-events:none"' : '') + '>');
     html.push('    <span class="se-label">\u7206\u53D1\u5F62\u72B6</span>');
-    html.push('    <div class="se-shape-group" id="se-burst-shape">');
-    html.push('      <button class="se-shape-btn' + ((cfg.burstStyle || "star") === "star" ? ' se-active' : '') + '" data-val="star">\u2605 \u661F\u661F</button>');
-    html.push('      <button class="se-shape-btn' + ((cfg.burstStyle || "star") === "bubble" ? ' se-active' : '') + '" data-val="bubble">\u25CB \u6CE1\u6CE1</button>');
-    html.push('      <button class="se-shape-btn' + ((cfg.burstStyle || "star") === "heart" ? ' se-active' : '') + '" data-val="heart">\u2665 \u7231\u5FC3</button>');
-    html.push('    </div>');
+    html.push(shapeButtons("se-burst-shape", cfg.burstStyle || "star"));
     html.push('  </div>');
 
     html.push('</div>');
@@ -412,11 +407,10 @@
     html.push('  </div>');
     html.push('</div>');
 
-    html.push('</div>'); // end #se-content
-
     // Footer
     html.push('<div class="se-footer">');
     html.push('  <button class="se-btn se-btn-off" id="se-kill">\u5B8C\u5168\u5173\u95ED\u7279\u6548</button>');
+    html.push('  <button class="se-btn se-btn-random" id="se-random">\u2732 \u5B8C\u5168\u968F\u673A</button>');
     html.push('  <button class="se-btn se-btn-reset" id="se-reset">\u91CD\u7F6E\u9ED8\u8BA4</button>');
     html.push('</div>');
 
@@ -426,8 +420,6 @@
     //  Grab DOM references
     // ═══════════════════════════════════════
 
-    var $enabled = panel.querySelector("#se-enabled");
-    var $content = panel.querySelector("#se-content");
     var $close = panel.querySelector("#se-close");
 
     // Color mode
@@ -463,6 +455,10 @@
     var $cursorSize = panel.querySelector("#se-cursor-size");
     var $cursorSizeVal = panel.querySelector("#se-cursor-size-val");
 
+    // Spread
+    var $cursorSpread = panel.querySelector("#se-cursor-spread");
+    var $cursorSpreadVal = panel.querySelector("#se-cursor-spread-val");
+
     // Shapes
     var $trailShapeGroup = panel.querySelector("#se-trail-shape");
     var $cursorShapeGroup = panel.querySelector("#se-cursor-shape");
@@ -478,9 +474,10 @@
     // Cursor file
     var $cursorFile = panel.querySelector("#se-cursor-file");
 
-    // Reset / Kill
+    // Footer buttons
     var $reset = panel.querySelector("#se-reset");
     var $kill = panel.querySelector("#se-kill");
+    var $random = panel.querySelector("#se-random");
 
     // ═══════════════════════════════════════
     //  State & helpers
@@ -529,24 +526,50 @@
       }
     }
 
-    function updateContentState() {
-      if ($enabled.checked) {
-        $content.classList.remove("se-disabled");
-      } else {
-        $content.classList.add("se-disabled");
-      }
-    }
-
     function updateGearState(disabled) {
       if (disabled) gearBtn.classList.add("se-gear-off");
       else gearBtn.classList.remove("se-gear-off");
     }
 
+    function setBurstRowsEnabled(on) {
+      $burstCountRow.style.opacity = on ? "" : "0.4";
+      $burstCountRow.style.pointerEvents = on ? "" : "none";
+      $burstShapeRow.style.opacity = on ? "" : "0.4";
+      $burstShapeRow.style.pointerEvents = on ? "" : "none";
+    }
+
+    function randomHex() {
+      var h = Math.floor(Math.random() * 16777215).toString(16);
+      while (h.length < 6) h = "0" + h;
+      return "#" + h;
+    }
+
+    function generateRandomSettings() {
+      var styles = ["star", "bubble", "heart", "random"];
+      return {
+        _disabled: false,
+        colorMode: Math.random() < 0.5 ? "fixed" : "rainbow",
+        color: randomHex(),
+        glowColor: randomHex(),
+        rainbowSpeed: Math.floor(Math.random() * 20) + 1,
+        rainbowSaturation: Math.floor(Math.random() * 101),
+        rainbowLightness: Math.floor(Math.random() * 81) + 10,
+        trailMaxCount: Math.floor(Math.random() * 116) + 5,
+        cursorStarCount: Math.floor(Math.random() * 20) + 1,
+        clickBurst: Math.random() < 0.6,
+        clickBurstCount: Math.floor(Math.random() * 57) + 4,
+        trailStyle: styles[Math.floor(Math.random() * 4)],
+        cursorStyle: styles[Math.floor(Math.random() * 4)],
+        burstStyle: styles[Math.floor(Math.random() * 4)],
+        trailSize: (Math.floor(Math.random() * 16) + 5) * 10,
+        cursorSize: (Math.floor(Math.random() * 16) + 5) * 10,
+        cursorSpread: Math.floor(Math.random() * 91) + 10,
+        cursor: ""
+      };
+    }
+
     // Populate panel from settings object
     function syncUI(s) {
-      $enabled.checked = !s._disabled;
-      updateContentState();
-
       // Color mode
       setColorMode(s.colorMode);
 
@@ -570,14 +593,14 @@
       $cursorSize.value = s.cursorSize || 100;
       $cursorSizeVal.textContent = (s.cursorSize || 100) + "%";
 
+      $cursorSpread.value = s.cursorSpread || 20;
+      $cursorSpreadVal.textContent = (s.cursorSpread || 20) + "px";
+
       setShapeActive($trailShapeGroup, s.trailStyle);
       setShapeActive($cursorShapeGroup, s.cursorStyle);
 
       $burst.checked = s.clickBurst;
-      $burstCountRow.style.opacity = s.clickBurst ? "" : "0.4";
-      $burstCountRow.style.pointerEvents = s.clickBurst ? "" : "none";
-      $burstShapeRow.style.opacity = s.clickBurst ? "" : "0.4";
-      $burstShapeRow.style.pointerEvents = s.clickBurst ? "" : "none";
+      setBurstRowsEnabled(s.clickBurst);
       $burstCount.value = s.clickBurstCount;
       $burstCountVal.textContent = s.clickBurstCount;
       setShapeActive($burstShapeGroup, s.burstStyle || "star");
@@ -592,6 +615,13 @@
     // Open / close panel
     function openPanel() {
       live = R.getSettings();
+      // Auto-enable if disabled
+      if (live._disabled) {
+        live._disabled = false;
+        updateGearState(false);
+        apply();
+        live = R.getSettings();
+      }
       syncUI(live);
       panel.classList.add("se-open");
       backdrop.classList.add("se-open");
@@ -613,14 +643,6 @@
 
     // Stop panel clicks from closing via backdrop
     panel.addEventListener("click", function (e) { e.stopPropagation(); });
-
-    // Master toggle
-    $enabled.addEventListener("change", function () {
-      live._disabled = !this.checked;
-      updateContentState();
-      updateGearState(live._disabled);
-      apply();
-    });
 
     // Color mode buttons
     $modeFixed.addEventListener("click", function () { setColorMode("fixed"); });
@@ -681,6 +703,13 @@
       applyDebounced();
     });
 
+    // Cursor spread
+    $cursorSpread.addEventListener("input", function () {
+      live.cursorSpread = parseInt(this.value, 10);
+      $cursorSpreadVal.textContent = this.value + "px";
+      applyDebounced();
+    });
+
     // Trail shape buttons
     $trailShapeGroup.addEventListener("click", function (e) {
       var btn = e.target.closest(".se-shape-btn");
@@ -702,10 +731,7 @@
     // Click burst toggle
     $burst.addEventListener("change", function () {
       live.clickBurst = this.checked;
-      $burstCountRow.style.opacity = this.checked ? "" : "0.4";
-      $burstCountRow.style.pointerEvents = this.checked ? "" : "none";
-      $burstShapeRow.style.opacity = this.checked ? "" : "0.4";
-      $burstShapeRow.style.pointerEvents = this.checked ? "" : "none";
+      setBurstRowsEnabled(this.checked);
       apply();
     });
 
@@ -737,6 +763,14 @@
       apply();
       closePanel();
       updateGearState(true);
+    });
+
+    // "完全随机" button
+    $random.addEventListener("click", function () {
+      live = generateRandomSettings();
+      syncUI(live);
+      updateGearState(false);
+      apply();
     });
 
     // Reset button

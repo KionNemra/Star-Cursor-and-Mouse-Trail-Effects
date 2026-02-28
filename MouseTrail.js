@@ -8,6 +8,7 @@ class MouseTrail {
     this.style = options.style || "star";
     this.burstStyle = options.burstStyle || this.style;
     this.sizeScale = options.sizeScale || 1;
+    this._ALL_SHAPES = ["star", "bubble", "heart"];
     this.trail = [];
     this.maxSquares = options.maxSquares || 20;
     this.minDistance = options.minDistance || 20;
@@ -30,6 +31,10 @@ class MouseTrail {
     this.setupCanvas();
     this.resizeCanvas();
     window.addEventListener('resize', () => this.resizeCanvas());
+  }
+
+  _resolveStyle(style) {
+    return style === "random" ? this._ALL_SHAPES[Math.floor(Math.random() * 3)] : style;
   }
 
   setupCanvas() {
@@ -61,7 +66,7 @@ class MouseTrail {
           vx: 0,
           vy: this.initialVy,
           hue: this._rainbowHue,
-          shapeStyle: this.style
+          shapeStyle: this._resolveStyle(this.style)
         });
       }
       this._rainbowHue = (this._rainbowHue + this.rainbowSpeed) % 360;
@@ -89,7 +94,7 @@ class MouseTrail {
         hue: this.colorMode === "rainbow"
           ? (this._rainbowHue + (i / count) * 360) % 360
           : 0,
-        shapeStyle: this.burstStyle
+        shapeStyle: this._resolveStyle(this.burstStyle)
       });
     }
     if (this.colorMode === "rainbow") {

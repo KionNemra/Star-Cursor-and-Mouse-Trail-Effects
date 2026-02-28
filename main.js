@@ -43,6 +43,7 @@ var cursor = new StarCursor('curs_canv2', {
   rainbowLightness: config.rainbowLightness,
   style: config.cursorStyle,
   sizeScale: (config.cursorSize || 100) / 100,
+  spread: config.cursorSpread || 20,
 });
 
 cursor.generateStars(config.cursorStarCount);

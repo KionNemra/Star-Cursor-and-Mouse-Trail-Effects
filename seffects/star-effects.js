@@ -39,6 +39,7 @@
     burstStyle: "star",        // "star" | "bubble" | "heart"
     trailSize: 100,            // trail particle size scale (50-200 %)
     cursorSize: 100,           // cursor star size scale   (50-200 %)
+    cursorSpread: 20,          // cursor star spread range (10-100 px)
     cursor: ""                 // filename like "cyan.ani", "" = browser default
   };
 
@@ -60,6 +61,63 @@
       if (src) for (var k in src) if (src.hasOwnProperty(k)) target[k] = src[k];
     }
     return target;
+  }
+
+  // ═══════════════════════════════════════════
+  //  Shape helpers
+  // ═══════════════════════════════════════════
+
+  var ALL_SHAPES = ["star", "bubble", "heart"];
+
+  function resolveStyle(style) {
+    return style === "random" ? ALL_SHAPES[Math.floor(Math.random() * 3)] : style;
+  }
+
+  function starVertices(radius) {
+    var inner = radius * 0.38, pts = [];
+    for (var i = 0; i < 10; i++) {
+      var a = (i / 10) * Math.PI * 2 - Math.PI / 2;
+      var r = (i % 2 === 0) ? radius : inner;
+      pts.push({ x: Math.cos(a) * r, y: Math.sin(a) * r });
+    }
+    return pts;
+  }
+
+  function pointInPolygon(px, py, poly) {
+    var inside = false;
+    for (var i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+      var xi = poly[i].x, yi = poly[i].y, xj = poly[j].x, yj = poly[j].y;
+      if (((yi > py) !== (yj > py)) && (px < (xj - xi) * (py - yi) / (yj - yi) + xi))
+        inside = !inside;
+    }
+    return inside;
+  }
+
+  function randomPointInShape(style, spread) {
+    var px, py, nx, ny, t;
+    if (style === "bubble" || style === "random") {
+      var a = Math.random() * Math.PI * 2;
+      var r = spread * Math.sqrt(Math.random());
+      return { x: Math.cos(a) * r, y: Math.sin(a) * r };
+    }
+    if (style === "heart") {
+      for (var n = 0; n < 200; n++) {
+        px = (Math.random() - 0.5) * 2.4 * spread;
+        py = (Math.random() - 0.5) * 2.4 * spread;
+        nx = px / spread; ny = -py / spread;
+        t = nx * nx + ny * ny - 1;
+        if (t * t * t - nx * nx * ny * ny * ny < 0) return { x: px, y: py };
+      }
+      return { x: 0, y: 0 };
+    }
+    // star
+    var verts = starVertices(spread);
+    for (var n = 0; n < 200; n++) {
+      px = (Math.random() - 0.5) * 2 * spread;
+      py = (Math.random() - 0.5) * 2 * spread;
+      if (pointInPolygon(px, py, verts)) return { x: px, y: py };
+    }
+    return { x: 0, y: 0 };
   }
 
   // ═══════════════════════════════════════════
@@ -133,7 +191,7 @@
           vx: 0,
           vy: this.initialVy,
           hue: this._rainbowHue,
-          shapeStyle: this.style
+          shapeStyle: resolveStyle(this.style)
         });
       }
       this._rainbowHue = (this._rainbowHue + this.rainbowSpeed) % 360;
@@ -159,7 +217,7 @@
         vy: Math.sin(angle) * speed,
         hue: this.colorMode === "rainbow"
           ? (this._rainbowHue + (i / count) * 360) % 360 : 0,
-        shapeStyle: this.burstStyle
+        shapeStyle: resolveStyle(this.burstStyle)
       });
     }
     if (this.colorMode === "rainbow")
@@ -375,6 +433,7 @@
     this.rainbowLightness = options.rainbowLightness || 65;
     this.style = options.style || "star";
     this.sizeScale = options.sizeScale || 1;
+    this.spread = options.spread || 20;
     this.stars = [];
   }
 
@@ -399,23 +458,18 @@
   StarCursor.prototype.generateStars = function (count) {
     this.stars = [];
     var cx = window.innerWidth / 2, cy = window.innerHeight / 2;
-    if (count === 3) {
-      this.addStar(new Star(cx, cy, 1, 2, 1, 0.3, -10, 0, 150));
-      this.addStar(new Star(cx, cy, 0.5, 1, 0.5, 0.05, 10));
-      this.addStar(new Star(cx, cy, 0.5, 1, 0.5, 0.1, -5, 20));
-      return;
-    }
+    var spreadStyle = this.style === "random" ? "bubble" : this.style;
     for (var i = 0; i < count; i++) {
-      var angle = (i / count) * Math.PI * 2 - Math.PI / 2;
-      var dist = 10 + (i % 2) * 8;
-      var offsetX = Math.round(Math.cos(angle) * dist);
-      var offsetY = Math.round(Math.sin(angle) * dist);
+      var pt = randomPointInShape(spreadStyle, this.spread);
       var isMain = (i === 0);
-      var size = isMain ? 1 : 0.5;
-      var maxSize = isMain ? 2 : 1;
-      var growFactor = 0.05 + (i % 4) * 0.07;
-      var growInterval = 100 + (i % 3) * 50;
-      this.addStar(new Star(cx, cy, size, maxSize, size, growFactor, offsetX, offsetY, growInterval));
+      var size = isMain ? 1 : 0.4 + Math.random() * 0.6;
+      var maxSize = isMain ? 2 : 0.8 + Math.random() * 0.7;
+      var growFactor = 0.05 + Math.random() * 0.25;
+      var growInterval = 80 + Math.floor(Math.random() * 120);
+      var star = new Star(cx, cy, size, maxSize, Math.min(size, 0.5), growFactor,
+        Math.round(pt.x), Math.round(pt.y), growInterval);
+      star.resolvedStyle = resolveStyle(this.style);
+      this.addStar(star);
     }
   };
 
@@ -440,11 +494,13 @@
           var hue = (baseHue + i * (360 / n)) % 360;
           var sc = "hsl(" + hue + "," + this.rainbowSaturation + "%," + this.rainbowLightness + "%)";
           var gc = "hsla(" + hue + "," + this.rainbowSaturation + "%," + Math.min(this.rainbowLightness + 10, 100) + "%,1)";
-          this.stars[i].draw(this.ctx, this.tempCtx, this.tempCanvas, sc, gc, this.style, this.sizeScale);
+          this.stars[i].draw(this.ctx, this.tempCtx, this.tempCanvas, sc, gc,
+            this.stars[i].resolvedStyle || this.style, this.sizeScale);
         }
       } else {
         for (var i = 0; i < this.stars.length; i++)
-          this.stars[i].draw(this.ctx, this.tempCtx, this.tempCanvas, this.starColor, this.glowColor, this.style, this.sizeScale);
+          this.stars[i].draw(this.ctx, this.tempCtx, this.tempCanvas, this.starColor, this.glowColor,
+            this.stars[i].resolvedStyle || this.style, this.sizeScale);
       }
       this.ctx.restore();
     }
@@ -801,7 +857,8 @@
       rainbowSaturation: cfg.rainbowSaturation,
       rainbowLightness: cfg.rainbowLightness,
       style: cfg.cursorStyle,
-      sizeScale: (cfg.cursorSize || 100) / 100
+      sizeScale: (cfg.cursorSize || 100) / 100,
+      spread: cfg.cursorSpread || 20
     });
     state.cursorStars.generateStars(cfg.cursorStarCount);
 

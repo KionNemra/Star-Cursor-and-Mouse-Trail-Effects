@@ -43,6 +43,7 @@
     // --- Size ---
     trailSize: 100,            // trail particle size scale (50-200 %)
     cursorSize: 100,           // cursor star size scale   (50-200 %)
+    cursorSpread: 20,          // cursor star spread range (10-100 px)
 
     // --- Custom cursor ---
     cursor: null,              // path to .cur or .ani file, null = browser default
