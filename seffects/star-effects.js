@@ -885,10 +885,10 @@
     if (!currentSettings._disabled) init(currentSettings);
   }
 
-  if (document.body) {
-    boot();
-  } else {
+  if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", boot);
+  } else {
+    boot();
   }
 
 })();
