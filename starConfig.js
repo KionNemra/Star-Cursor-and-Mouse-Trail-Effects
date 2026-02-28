@@ -38,7 +38,11 @@
     // --- Shape styles ---
     trailStyle: "star",        // trail particle shape: "star" | "bubble" | "heart"
     cursorStyle: "star",       // cursor star shape:    "star" | "bubble" | "heart"
-    burstStyle: "star",        // burst particle shape: "star" | "bubble" | "heart"
+    burstStyle: "star",        // burst particle shape: "star" | "bubble" | "heart" | "flower" | "flame"
+
+    // --- Lifetime ---
+    trailLifetime: 1000,       // trail particle linger duration (300-5000 ms)
+    burstLifetime: 1000,       // burst particle linger duration (300-5000 ms)
 
     // --- Size ---
     trailSize: 100,            // trail particle size scale (50-200 %)

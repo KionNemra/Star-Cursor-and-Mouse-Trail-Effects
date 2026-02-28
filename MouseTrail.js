@@ -8,11 +8,12 @@ class MouseTrail {
     this.style = options.style || "star";
     this.burstStyle = options.burstStyle || this.style;
     this.sizeScale = options.sizeScale || 1;
-    this._ALL_SHAPES = ["star", "bubble", "heart"];
+    this._ALL_SHAPES = ["star", "bubble", "heart", "flower", "flame"];
     this.trail = [];
     this.maxSquares = options.maxSquares || 20;
     this.minDistance = options.minDistance || 20;
     this.lifetime = options.lifetime || 1000;
+    this.burstLifetime = options.burstLifetime || this.lifetime;
     this.sizeChange = options.sizeChange || 0.1;
     this.initialVy = options.initialVy || 1;
     this.lastX = 0;
@@ -34,7 +35,7 @@ class MouseTrail {
   }
 
   _resolveStyle(style) {
-    return style === "random" ? this._ALL_SHAPES[Math.floor(Math.random() * 3)] : style;
+    return style === "random" ? this._ALL_SHAPES[Math.floor(Math.random() * this._ALL_SHAPES.length)] : style;
   }
 
   setupCanvas() {
@@ -57,16 +58,20 @@ class MouseTrail {
       const count = Math.floor(Math.random() * 3) + 1;
       const now = performance.now();
       for (let j = 0; j < count; j++) {
+        const resolved = this._resolveStyle(this.style);
+        let pVx = 0, pVy = this.initialVy;
+        if (resolved === "flame") { pVy = -0.5 - Math.random() * 0.5; pVx = (Math.random() - 0.5) * 1.5; }
         this.trail.push({
           x: x + (Math.random() - 0.5) * 20,
           y: y + Math.random() * 20,
           birthTime: now,
           size: 1,
           growing: Math.random() < 0.5,
-          vx: 0,
-          vy: this.initialVy,
+          vx: pVx,
+          vy: pVy,
           hue: this._rainbowHue,
-          shapeStyle: this._resolveStyle(this.style)
+          shapeStyle: resolved,
+          lifetime: this.lifetime
         });
       }
       this._rainbowHue = (this._rainbowHue + this.rainbowSpeed) % 360;
@@ -83,18 +88,23 @@ class MouseTrail {
     for (let i = 0; i < count; i++) {
       const angle = (i / count) * Math.PI * 2 + (Math.random() - 0.5) * 0.5;
       const speed = 1.5 + Math.random() * 3;
+      const resolved = this._resolveStyle(this.burstStyle);
+      let bVx = Math.cos(angle) * speed;
+      let bVy = Math.sin(angle) * speed;
+      if (resolved === "flame") bVy -= 1;
       this.trail.push({
         x: x + (Math.random() - 0.5) * 10,
         y: y + (Math.random() - 0.5) * 10,
         birthTime: now,
         size: 0.8 + Math.random() * 0.7,
         growing: Math.random() < 0.5,
-        vx: Math.cos(angle) * speed,
-        vy: Math.sin(angle) * speed,
+        vx: bVx,
+        vy: bVy,
         hue: this.colorMode === "rainbow"
           ? (this._rainbowHue + (i / count) * 360) % 360
           : 0,
-        shapeStyle: this._resolveStyle(this.burstStyle)
+        shapeStyle: resolved,
+        lifetime: this.burstLifetime
       });
     }
     if (this.colorMode === "rainbow") {
@@ -107,7 +117,7 @@ class MouseTrail {
     // In-place removal of expired elements (avoids .filter() allocating new array)
     let writeIdx = 0;
     for (let i = 0; i < this.trail.length; i++) {
-      if (timestamp - this.trail[i].birthTime < this.lifetime) {
+      if (timestamp - this.trail[i].birthTime < (this.trail[i].lifetime || this.lifetime)) {
         this.trail[writeIdx++] = this.trail[i];
       }
     }
@@ -122,6 +132,7 @@ class MouseTrail {
       const el = this.trail[i];
       el.x += el.vx;
       el.y += el.vy;
+      if (el.shapeStyle === "flame") el.vx += (Math.random() - 0.5) * 0.2;
 
       if (el.growing) {
         el.size += this.sizeChange;
@@ -131,7 +142,8 @@ class MouseTrail {
         if (el.size <= this.minSize) el.growing = true;
       }
 
-      const alpha = Math.max(0, 1 - (timestamp - el.birthTime) / this.lifetime);
+      const pLifetime = el.lifetime || this.lifetime;
+      const alpha = Math.max(0, 1 - (timestamp - el.birthTime) / pLifetime);
       this.ctx.globalAlpha = alpha;
 
       if (isRainbow) {
@@ -166,6 +178,52 @@ class MouseTrail {
         this.ctx.closePath();
         this.ctx.fill();
         this.ctx.restore();
+      } else if (pStyle === "flower") {
+        var rot = (timestamp - el.birthTime) * 0.003;
+        var pl = sz * 3, pw = sz * 1.2;
+        this.ctx.save();
+        this.ctx.translate(el.x, el.y);
+        this.ctx.rotate(rot);
+        for (var p = 0; p < 5; p++) {
+          this.ctx.save();
+          this.ctx.rotate((p / 5) * Math.PI * 2);
+          this.ctx.beginPath();
+          this.ctx.ellipse(0, -pl * 0.5, pw, pl * 0.5, 0, 0, Math.PI * 2);
+          this.ctx.fill();
+          this.ctx.restore();
+        }
+        this.ctx.beginPath();
+        this.ctx.arc(0, 0, sz, 0, Math.PI * 2);
+        this.ctx.save();
+        this.ctx.globalAlpha = alpha * 0.7;
+        this.ctx.fillStyle = "#fff8dc";
+        this.ctx.fill();
+        this.ctx.restore();
+        this.ctx.restore();
+      } else if (pStyle === "flame") {
+        var age = (timestamp - el.birthTime) / pLifetime;
+        var fHue = 60 - age * 60;
+        var fLit = 65 - age * 30;
+        this.ctx.fillStyle = "hsl(" + fHue + ",100%," + fLit + "%)";
+        var fh = sz * 4, fw = sz * 2;
+        this.ctx.save();
+        this.ctx.translate(el.x, el.y);
+        this.ctx.beginPath();
+        this.ctx.moveTo(0, -fh * 0.5);
+        this.ctx.bezierCurveTo(fw, -fh * 0.15, fw * 0.5, fh * 0.4, 0, fh * 0.5);
+        this.ctx.bezierCurveTo(-fw * 0.5, fh * 0.4, -fw, -fh * 0.15, 0, -fh * 0.5);
+        this.ctx.closePath();
+        this.ctx.fill();
+        this.ctx.beginPath();
+        this.ctx.moveTo(0, -fh * 0.3);
+        this.ctx.bezierCurveTo(fw * 0.4, -fh * 0.05, fw * 0.2, fh * 0.25, 0, fh * 0.3);
+        this.ctx.bezierCurveTo(-fw * 0.2, fh * 0.25, -fw * 0.4, -fh * 0.05, 0, -fh * 0.3);
+        this.ctx.closePath();
+        this.ctx.fillStyle = "hsl(" + Math.min(fHue + 15, 60) + ",100%," + Math.min(fLit + 15, 85) + "%)";
+        this.ctx.fill();
+        this.ctx.restore();
+        if (isRainbow) this.ctx.fillStyle = "hsl(" + el.hue + "," + this.rainbowSaturation + "%," + this.rainbowLightness + "%)";
+        else this.ctx.fillStyle = this.color;
       } else {
         this.ctx.beginPath();
         this.ctx.moveTo(el.x + this.shape[0].x * sz, el.y + this.shape[0].y * sz);

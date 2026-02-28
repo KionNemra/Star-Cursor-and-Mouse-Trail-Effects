@@ -36,7 +36,9 @@
     clickBurstCount: 12,
     trailStyle: "star",        // "star" | "bubble" | "heart"
     cursorStyle: "star",
-    burstStyle: "star",        // "star" | "bubble" | "heart"
+    burstStyle: "star",        // "star" | "bubble" | "heart" | "flower" | "flame"
+    trailLifetime: 1000,       // trail particle linger duration (300-5000 ms)
+    burstLifetime: 1000,       // burst particle linger duration (300-5000 ms)
     trailSize: 100,            // trail particle size scale (50-200 %)
     cursorSize: 100,           // cursor star size scale   (50-200 %)
     cursorSpread: 20,          // cursor star spread range (10-100 px)
@@ -67,10 +69,10 @@
   //  Shape helpers
   // ═══════════════════════════════════════════
 
-  var ALL_SHAPES = ["star", "bubble", "heart"];
+  var ALL_SHAPES = ["star", "bubble", "heart", "flower", "flame"];
 
   function resolveStyle(style) {
-    return style === "random" ? ALL_SHAPES[Math.floor(Math.random() * 3)] : style;
+    return style === "random" ? ALL_SHAPES[Math.floor(Math.random() * ALL_SHAPES.length)] : style;
   }
 
   function starVertices(radius) {
@@ -95,7 +97,7 @@
 
   function randomPointInShape(style, spread) {
     var px, py, nx, ny, t;
-    if (style === "bubble" || style === "random") {
+    if (style === "bubble" || style === "random" || style === "flower" || style === "flame") {
       var a = Math.random() * Math.PI * 2;
       var r = spread * Math.sqrt(Math.random());
       return { x: Math.cos(a) * r, y: Math.sin(a) * r };
@@ -140,6 +142,7 @@
     this.maxSquares = options.maxSquares || 20;
     this.minDistance = options.minDistance || 20;
     this.lifetime = options.lifetime || 1000;
+    this.burstLifetime = options.burstLifetime || this.lifetime;
     this.sizeChange = options.sizeChange || 0.1;
     this.initialVy = options.initialVy || 1;
     this.lastX = 0;
@@ -182,16 +185,20 @@
       var count = Math.floor(Math.random() * 3) + 1;
       var now = performance.now();
       for (var j = 0; j < count; j++) {
+        var resolved = resolveStyle(this.style);
+        var pVx = 0, pVy = this.initialVy;
+        if (resolved === "flame") { pVy = -0.5 - Math.random() * 0.5; pVx = (Math.random() - 0.5) * 1.5; }
         this.trail.push({
           x: x + (Math.random() - 0.5) * 20,
           y: y + Math.random() * 20,
           birthTime: now,
           size: 1,
           growing: Math.random() < 0.5,
-          vx: 0,
-          vy: this.initialVy,
+          vx: pVx,
+          vy: pVy,
           hue: this._rainbowHue,
-          shapeStyle: resolveStyle(this.style)
+          shapeStyle: resolved,
+          lifetime: this.lifetime
         });
       }
       this._rainbowHue = (this._rainbowHue + this.rainbowSpeed) % 360;
@@ -207,17 +214,22 @@
     for (var i = 0; i < count; i++) {
       var angle = (i / count) * Math.PI * 2 + (Math.random() - 0.5) * 0.5;
       var speed = 1.5 + Math.random() * 3;
+      var resolved = resolveStyle(this.burstStyle);
+      var bVx = Math.cos(angle) * speed;
+      var bVy = Math.sin(angle) * speed;
+      if (resolved === "flame") bVy -= 1;
       this.trail.push({
         x: x + (Math.random() - 0.5) * 10,
         y: y + (Math.random() - 0.5) * 10,
         birthTime: now,
         size: 0.8 + Math.random() * 0.7,
         growing: Math.random() < 0.5,
-        vx: Math.cos(angle) * speed,
-        vy: Math.sin(angle) * speed,
+        vx: bVx,
+        vy: bVy,
         hue: this.colorMode === "rainbow"
           ? (this._rainbowHue + (i / count) * 360) % 360 : 0,
-        shapeStyle: resolveStyle(this.burstStyle)
+        shapeStyle: resolved,
+        lifetime: this.burstLifetime
       });
     }
     if (this.colorMode === "rainbow")
@@ -227,7 +239,7 @@
   MouseTrail.prototype.update = function (timestamp) {
     var writeIdx = 0;
     for (var i = 0; i < this.trail.length; i++) {
-      if (timestamp - this.trail[i].birthTime < this.lifetime)
+      if (timestamp - this.trail[i].birthTime < (this.trail[i].lifetime || this.lifetime))
         this.trail[writeIdx++] = this.trail[i];
     }
     this.trail.length = writeIdx;
@@ -240,6 +252,7 @@
       var el = this.trail[i];
       el.x += el.vx;
       el.y += el.vy;
+      if (el.shapeStyle === "flame") el.vx += (Math.random() - 0.5) * 0.2;
 
       if (el.growing) {
         el.size += this.sizeChange;
@@ -249,7 +262,8 @@
         if (el.size <= this.minSize) el.growing = true;
       }
 
-      var alpha = Math.max(0, 1 - (timestamp - el.birthTime) / this.lifetime);
+      var pLifetime = el.lifetime || this.lifetime;
+      var alpha = Math.max(0, 1 - (timestamp - el.birthTime) / pLifetime);
       this.ctx.globalAlpha = alpha;
 
       if (isRainbow)
@@ -282,6 +296,52 @@
         this.ctx.closePath();
         this.ctx.fill();
         this.ctx.restore();
+      } else if (pStyle === "flower") {
+        var rot = (timestamp - el.birthTime) * 0.003;
+        var pl = sz * 3, pw = sz * 1.2;
+        this.ctx.save();
+        this.ctx.translate(el.x, el.y);
+        this.ctx.rotate(rot);
+        for (var p = 0; p < 5; p++) {
+          this.ctx.save();
+          this.ctx.rotate((p / 5) * Math.PI * 2);
+          this.ctx.beginPath();
+          this.ctx.ellipse(0, -pl * 0.5, pw, pl * 0.5, 0, 0, Math.PI * 2);
+          this.ctx.fill();
+          this.ctx.restore();
+        }
+        this.ctx.beginPath();
+        this.ctx.arc(0, 0, sz, 0, Math.PI * 2);
+        this.ctx.save();
+        this.ctx.globalAlpha = alpha * 0.7;
+        this.ctx.fillStyle = "#fff8dc";
+        this.ctx.fill();
+        this.ctx.restore();
+        this.ctx.restore();
+      } else if (pStyle === "flame") {
+        var age = (timestamp - el.birthTime) / pLifetime;
+        var fHue = 60 - age * 60;
+        var fLit = 65 - age * 30;
+        this.ctx.fillStyle = "hsl(" + fHue + ",100%," + fLit + "%)";
+        var fh = sz * 4, fw = sz * 2;
+        this.ctx.save();
+        this.ctx.translate(el.x, el.y);
+        this.ctx.beginPath();
+        this.ctx.moveTo(0, -fh * 0.5);
+        this.ctx.bezierCurveTo(fw, -fh * 0.15, fw * 0.5, fh * 0.4, 0, fh * 0.5);
+        this.ctx.bezierCurveTo(-fw * 0.5, fh * 0.4, -fw, -fh * 0.15, 0, -fh * 0.5);
+        this.ctx.closePath();
+        this.ctx.fill();
+        this.ctx.beginPath();
+        this.ctx.moveTo(0, -fh * 0.3);
+        this.ctx.bezierCurveTo(fw * 0.4, -fh * 0.05, fw * 0.2, fh * 0.25, 0, fh * 0.3);
+        this.ctx.bezierCurveTo(-fw * 0.2, fh * 0.25, -fw * 0.4, -fh * 0.05, 0, -fh * 0.3);
+        this.ctx.closePath();
+        this.ctx.fillStyle = "hsl(" + Math.min(fHue + 15, 60) + ",100%," + Math.min(fLit + 15, 85) + "%)";
+        this.ctx.fill();
+        this.ctx.restore();
+        if (isRainbow) this.ctx.fillStyle = "hsl(" + el.hue + "," + this.rainbowSaturation + "%," + this.rainbowLightness + "%)";
+        else this.ctx.fillStyle = this.color;
       } else {
         var shape = this.shape;
         this.ctx.beginPath();
@@ -335,7 +395,7 @@
     }
   };
 
-  Star.prototype.draw = function (ctx, tempCtx, tempCanvas, color, glowColor, style, sizeScale) {
+  Star.prototype.draw = function (ctx, tempCtx, tempCanvas, color, glowColor, style, sizeScale, timestamp) {
     var s = this.size * (sizeScale || 1);
     var cx = tempCanvas.width / 2;
     var cy = tempCanvas.height / 2;
@@ -376,6 +436,48 @@
       ctx.bezierCurveTo(hs * 0.5, -hs * 1.2, hs, -hs * 0.6, 0, hs * 0.3);
       ctx.closePath();
       ctx.fillStyle = color;
+      ctx.fill();
+      ctx.restore();
+    } else if (style === "flower") {
+      var rot = timestamp ? timestamp * 0.002 : 0;
+      var pl = s * 3, pw = s * 1.2;
+      ctx.save();
+      ctx.translate(this.x, this.y);
+      ctx.rotate(rot);
+      for (var p = 0; p < 5; p++) {
+        ctx.save();
+        ctx.rotate((p / 5) * Math.PI * 2);
+        ctx.beginPath();
+        ctx.ellipse(0, -pl * 0.5, pw, pl * 0.5, 0, 0, Math.PI * 2);
+        ctx.fillStyle = color;
+        ctx.fill();
+        ctx.restore();
+      }
+      ctx.beginPath();
+      ctx.arc(0, 0, s, 0, Math.PI * 2);
+      ctx.fillStyle = "#fff8dc";
+      ctx.globalAlpha = ctx.globalAlpha * 0.7;
+      ctx.fill();
+      ctx.restore();
+    } else if (style === "flame") {
+      var fh = s * 4, fw = s * 2;
+      ctx.save();
+      ctx.translate(this.x, this.y);
+      var flicker = timestamp ? Math.sin(timestamp * 0.01 + this.x * 0.1) * 0.5 + 0.5 : 0.5;
+      var fHue = 20 + flicker * 40;
+      ctx.beginPath();
+      ctx.moveTo(0, -fh * 0.5);
+      ctx.bezierCurveTo(fw, -fh * 0.15, fw * 0.5, fh * 0.4, 0, fh * 0.5);
+      ctx.bezierCurveTo(-fw * 0.5, fh * 0.4, -fw, -fh * 0.15, 0, -fh * 0.5);
+      ctx.closePath();
+      ctx.fillStyle = "hsl(" + fHue + ",100%,55%)";
+      ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(0, -fh * 0.3);
+      ctx.bezierCurveTo(fw * 0.4, -fh * 0.05, fw * 0.2, fh * 0.25, 0, fh * 0.3);
+      ctx.bezierCurveTo(-fw * 0.2, fh * 0.25, -fw * 0.4, -fh * 0.05, 0, -fh * 0.3);
+      ctx.closePath();
+      ctx.fillStyle = "hsl(" + Math.min(fHue + 15, 60) + ",100%,70%)";
       ctx.fill();
       ctx.restore();
     } else {
@@ -495,12 +597,12 @@
           var sc = "hsl(" + hue + "," + this.rainbowSaturation + "%," + this.rainbowLightness + "%)";
           var gc = "hsla(" + hue + "," + this.rainbowSaturation + "%," + Math.min(this.rainbowLightness + 10, 100) + "%,1)";
           this.stars[i].draw(this.ctx, this.tempCtx, this.tempCanvas, sc, gc,
-            this.stars[i].resolvedStyle || this.style, this.sizeScale);
+            this.stars[i].resolvedStyle || this.style, this.sizeScale, timestamp);
         }
       } else {
         for (var i = 0; i < this.stars.length; i++)
           this.stars[i].draw(this.ctx, this.tempCtx, this.tempCanvas, this.starColor, this.glowColor,
-            this.stars[i].resolvedStyle || this.style, this.sizeScale);
+            this.stars[i].resolvedStyle || this.style, this.sizeScale, timestamp);
       }
       this.ctx.restore();
     }
@@ -845,7 +947,9 @@
       rainbowLightness: cfg.rainbowLightness,
       style: cfg.trailStyle,
       burstStyle: cfg.burstStyle || cfg.trailStyle,
-      sizeScale: (cfg.trailSize || 100) / 100
+      sizeScale: (cfg.trailSize || 100) / 100,
+      lifetime: cfg.trailLifetime || 1000,
+      burstLifetime: cfg.burstLifetime || 1000
     });
 
     // Cursor stars

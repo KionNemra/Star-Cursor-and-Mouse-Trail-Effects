@@ -7,10 +7,10 @@ const STAR_POINTS = [
   {x: 0, y: 4}, {x: -1, y: 1}, {x: -4, y: 0}, {x: -1, y: -1},
 ];
 
-const ALL_SHAPES = ["star", "bubble", "heart"];
+const ALL_SHAPES = ["star", "bubble", "heart", "flower", "flame"];
 
 function _resolveStyle(style) {
-  return style === "random" ? ALL_SHAPES[Math.floor(Math.random() * 3)] : style;
+  return style === "random" ? ALL_SHAPES[Math.floor(Math.random() * ALL_SHAPES.length)] : style;
 }
 
 function _starVertices(radius) {
@@ -35,7 +35,7 @@ function _pointInPolygon(px, py, poly) {
 
 function _randomPointInShape(style, spread) {
   var px, py, nx, ny, t;
-  if (style === "bubble" || style === "random") {
+  if (style === "bubble" || style === "random" || style === "flower" || style === "flame") {
     var a = Math.random() * Math.PI * 2;
     var r = spread * Math.sqrt(Math.random());
     return { x: Math.cos(a) * r, y: Math.sin(a) * r };
@@ -177,12 +177,12 @@ class StarCursor {
           var sc = "hsl(" + hue + "," + this.rainbowSaturation + "%," + this.rainbowLightness + "%)";
           var gc = "hsla(" + hue + "," + this.rainbowSaturation + "%," + Math.min(this.rainbowLightness + 10, 100) + "%,1)";
           this.stars[i].draw(this.ctx, this.tempCtx, this.tempCanvas, sc, gc,
-            this.stars[i].resolvedStyle || this.style, this.sizeScale);
+            this.stars[i].resolvedStyle || this.style, this.sizeScale, timestamp);
         }
       } else {
         for (var i = 0; i < this.stars.length; i++) {
           this.stars[i].draw(this.ctx, this.tempCtx, this.tempCanvas, this.starColor, this.glowColor,
-            this.stars[i].resolvedStyle || this.style, this.sizeScale);
+            this.stars[i].resolvedStyle || this.style, this.sizeScale, timestamp);
         }
       }
 
@@ -220,7 +220,7 @@ class Star {
     }
   }
 
-  draw(ctx, tempCtx, tempCanvas, color, glowColor, style, sizeScale) {
+  draw(ctx, tempCtx, tempCanvas, color, glowColor, style, sizeScale, timestamp) {
     const s = this.size * (sizeScale || 1);
     const cx = tempCanvas.width / 2;
     const cy = tempCanvas.height / 2;
@@ -265,6 +265,48 @@ class Star {
       ctx.bezierCurveTo(hs * 0.5, -hs * 1.2, hs, -hs * 0.6, 0, hs * 0.3);
       ctx.closePath();
       ctx.fillStyle = color;
+      ctx.fill();
+      ctx.restore();
+    } else if (style === "flower") {
+      var rot = timestamp ? timestamp * 0.002 : 0;
+      var pl = s * 3, pw = s * 1.2;
+      ctx.save();
+      ctx.translate(this.x, this.y);
+      ctx.rotate(rot);
+      for (var p = 0; p < 5; p++) {
+        ctx.save();
+        ctx.rotate((p / 5) * Math.PI * 2);
+        ctx.beginPath();
+        ctx.ellipse(0, -pl * 0.5, pw, pl * 0.5, 0, 0, Math.PI * 2);
+        ctx.fillStyle = color;
+        ctx.fill();
+        ctx.restore();
+      }
+      ctx.beginPath();
+      ctx.arc(0, 0, s, 0, Math.PI * 2);
+      ctx.fillStyle = "#fff8dc";
+      ctx.globalAlpha = ctx.globalAlpha * 0.7;
+      ctx.fill();
+      ctx.restore();
+    } else if (style === "flame") {
+      var fh = s * 4, fw = s * 2;
+      ctx.save();
+      ctx.translate(this.x, this.y);
+      var flicker = timestamp ? Math.sin(timestamp * 0.01 + this.x * 0.1) * 0.5 + 0.5 : 0.5;
+      var fHue = 20 + flicker * 40;
+      ctx.beginPath();
+      ctx.moveTo(0, -fh * 0.5);
+      ctx.bezierCurveTo(fw, -fh * 0.15, fw * 0.5, fh * 0.4, 0, fh * 0.5);
+      ctx.bezierCurveTo(-fw * 0.5, fh * 0.4, -fw, -fh * 0.15, 0, -fh * 0.5);
+      ctx.closePath();
+      ctx.fillStyle = "hsl(" + fHue + ",100%,55%)";
+      ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(0, -fh * 0.3);
+      ctx.bezierCurveTo(fw * 0.4, -fh * 0.05, fw * 0.2, fh * 0.25, 0, fh * 0.3);
+      ctx.bezierCurveTo(-fw * 0.2, fh * 0.25, -fw * 0.4, -fh * 0.05, 0, -fh * 0.3);
+      ctx.closePath();
+      ctx.fillStyle = "hsl(" + Math.min(fHue + 15, 60) + ",100%,70%)";
       ctx.fill();
       ctx.restore();
     } else {

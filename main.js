@@ -16,6 +16,8 @@ var trail = new MouseTrail('curs_canv', {
   style: config.trailStyle,
   burstStyle: config.burstStyle || config.trailStyle,
   sizeScale: (config.trailSize || 100) / 100,
+  lifetime: config.trailLifetime || 1000,
+  burstLifetime: config.burstLifetime || 1000,
 });
 
 window.addEventListener('mousemove', function (e) {

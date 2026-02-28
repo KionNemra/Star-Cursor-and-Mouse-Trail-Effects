@@ -331,6 +331,22 @@
     html.push('    </div>');
     html.push('  </div>');
 
+    html.push('  <div class="se-row">');
+    html.push('    <span class="se-label">\u62D6\u5C3E\u65F6\u957F</span>');
+    html.push('    <div class="se-slider-wrap">');
+    html.push('      <input type="range" class="se-slider" id="se-trail-lifetime" min="300" max="5000" step="100" value="' + (cfg.trailLifetime || 1000) + '">');
+    html.push('      <span class="se-slider-val" id="se-trail-lifetime-val">' + ((cfg.trailLifetime || 1000) / 1000).toFixed(1) + 's</span>');
+    html.push('    </div>');
+    html.push('  </div>');
+
+    html.push('  <div class="se-row">');
+    html.push('    <span class="se-label">\u7206\u53D1\u65F6\u957F</span>');
+    html.push('    <div class="se-slider-wrap">');
+    html.push('      <input type="range" class="se-slider" id="se-burst-lifetime" min="300" max="5000" step="100" value="' + (cfg.burstLifetime || 1000) + '">');
+    html.push('      <span class="se-slider-val" id="se-burst-lifetime-val">' + ((cfg.burstLifetime || 1000) / 1000).toFixed(1) + 's</span>');
+    html.push('    </div>');
+    html.push('  </div>');
+
     html.push('</div>');
 
     // ── Shape section ──
@@ -344,6 +360,8 @@
       h += '      <button class="se-shape-btn' + (current === "star" ? ' se-active' : '') + '" data-val="star">\u2605 \u661F\u661F</button>';
       h += '      <button class="se-shape-btn' + (current === "bubble" ? ' se-active' : '') + '" data-val="bubble">\u25CB \u6CE1\u6CE1</button>';
       h += '      <button class="se-shape-btn' + (current === "heart" ? ' se-active' : '') + '" data-val="heart">\u2665 \u7231\u5FC3</button>';
+      h += '      <button class="se-shape-btn' + (current === "flower" ? ' se-active' : '') + '" data-val="flower">\u273F \u82B1\u6735</button>';
+      h += '      <button class="se-shape-btn' + (current === "flame" ? ' se-active' : '') + '" data-val="flame">\u2604 \u706B\u7130</button>';
       h += '      <button class="se-shape-btn' + (current === "random" ? ' se-active' : '') + '" data-val="random">\u2732 \u968F\u673A</button>';
       h += '    </div>';
       return h;
@@ -459,6 +477,12 @@
     var $cursorSpread = panel.querySelector("#se-cursor-spread");
     var $cursorSpreadVal = panel.querySelector("#se-cursor-spread-val");
 
+    // Lifetime
+    var $trailLifetime = panel.querySelector("#se-trail-lifetime");
+    var $trailLifetimeVal = panel.querySelector("#se-trail-lifetime-val");
+    var $burstLifetime = panel.querySelector("#se-burst-lifetime");
+    var $burstLifetimeVal = panel.querySelector("#se-burst-lifetime-val");
+
     // Shapes
     var $trailShapeGroup = panel.querySelector("#se-trail-shape");
     var $cursorShapeGroup = panel.querySelector("#se-cursor-shape");
@@ -545,7 +569,7 @@
     }
 
     function generateRandomSettings() {
-      var styles = ["star", "bubble", "heart", "random"];
+      var styles = ["star", "bubble", "heart", "flower", "flame", "random"];
       return {
         _disabled: false,
         colorMode: Math.random() < 0.5 ? "fixed" : "rainbow",
@@ -558,12 +582,14 @@
         cursorStarCount: Math.floor(Math.random() * 20) + 1,
         clickBurst: Math.random() < 0.6,
         clickBurstCount: Math.floor(Math.random() * 57) + 4,
-        trailStyle: styles[Math.floor(Math.random() * 4)],
-        cursorStyle: styles[Math.floor(Math.random() * 4)],
-        burstStyle: styles[Math.floor(Math.random() * 4)],
+        trailStyle: styles[Math.floor(Math.random() * styles.length)],
+        cursorStyle: styles[Math.floor(Math.random() * styles.length)],
+        burstStyle: styles[Math.floor(Math.random() * styles.length)],
         trailSize: (Math.floor(Math.random() * 16) + 5) * 10,
         cursorSize: (Math.floor(Math.random() * 16) + 5) * 10,
         cursorSpread: Math.floor(Math.random() * 91) + 10,
+        trailLifetime: (Math.floor(Math.random() * 48) + 3) * 100,
+        burstLifetime: (Math.floor(Math.random() * 48) + 3) * 100,
         cursor: ""
       };
     }
@@ -595,6 +621,11 @@
 
       $cursorSpread.value = s.cursorSpread || 20;
       $cursorSpreadVal.textContent = (s.cursorSpread || 20) + "px";
+
+      $trailLifetime.value = s.trailLifetime || 1000;
+      $trailLifetimeVal.textContent = ((s.trailLifetime || 1000) / 1000).toFixed(1) + "s";
+      $burstLifetime.value = s.burstLifetime || 1000;
+      $burstLifetimeVal.textContent = ((s.burstLifetime || 1000) / 1000).toFixed(1) + "s";
 
       setShapeActive($trailShapeGroup, s.trailStyle);
       setShapeActive($cursorShapeGroup, s.cursorStyle);
@@ -707,6 +738,20 @@
     $cursorSpread.addEventListener("input", function () {
       live.cursorSpread = parseInt(this.value, 10);
       $cursorSpreadVal.textContent = this.value + "px";
+      applyDebounced();
+    });
+
+    // Trail lifetime
+    $trailLifetime.addEventListener("input", function () {
+      live.trailLifetime = parseInt(this.value, 10);
+      $trailLifetimeVal.textContent = (this.value / 1000).toFixed(1) + "s";
+      applyDebounced();
+    });
+
+    // Burst lifetime
+    $burstLifetime.addEventListener("input", function () {
+      live.burstLifetime = parseInt(this.value, 10);
+      $burstLifetimeVal.textContent = (this.value / 1000).toFixed(1) + "s";
       applyDebounced();
     });
 
