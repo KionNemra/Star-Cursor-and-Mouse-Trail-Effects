@@ -152,6 +152,23 @@
 
   var canBlob = typeof URL !== "undefined" && URL.createObjectURL && typeof Blob !== "undefined";
 
+  // ── Ensure ANI frame is CUR format (type=2) for blob URLs ──
+  // ANI frames may be ICO (type=1) which Firefox won't display as a cursor.
+  // CUR and ICO share the same format; only the type field differs.
+  function ensureCurFormat(buf) {
+    var v = new DataView(buf);
+    if (v.getUint16(2, true) === 2) return buf; // already CUR
+    var copy = buf.slice(0);
+    var cv = new DataView(copy);
+    cv.setUint16(2, 2, true); // set type = CUR (2)
+    // ICO directory has planes/bpp where CUR has hotspot; use image center
+    var w = cv.getUint8(6) || 256;
+    var h = cv.getUint8(7) || 256;
+    cv.setUint16(10, Math.floor(w / 2), true); // hotX
+    cv.setUint16(12, Math.floor(h / 2), true); // hotY
+    return copy;
+  }
+
   // ── CursorManager ──
 
   function CursorManager() {
@@ -162,6 +179,7 @@
     this._step = 0;
     this._timer = null;
     this._styleEl = null;
+    this._fallbackCurUrl = null;
     this._isFirefox = typeof navigator !== "undefined" && /firefox/i.test(navigator.userAgent || "");
   }
 
@@ -227,7 +245,7 @@
       var self = this;
       var isCur = url.toLowerCase().endsWith(".cur");
       var isAni = url.toLowerCase().endsWith(".ani");
-      var fallbackCurUrl = isAni ? url.replace(/\.ani$/i, ".cur") : null;
+      this._fallbackCurUrl = isAni ? url.replace(/\.ani$/i, ".cur") : null;
       console.log("CursorManager: loading " + url);
 
       // For static .cur, set native URL immediately so Firefox still gets a cursor
@@ -241,12 +259,8 @@
             var frame = curToFrame(buf);
             if (canBlob) frame.blobUrl = URL.createObjectURL(dataUrlToBlob(frame.url));
             self._frames = [frame];
-            // Use original .cur URL directly — Firefox (and all browsers)
-            // support .cur natively in CSS cursor, no conversion needed.
             self._setCursor(frame, url);
-            console.log("CursorManager: .cur loaded, using direct URL as primary cursor" +
-              ", hotspot=(" + frame.hotX + "," + frame.hotY + ")" +
-              ", pngBlob=" + !!frame.blobUrl);
+            console.log("CursorManager: .cur loaded, hotspot=(" + frame.hotX + "," + frame.hotY + ")");
           } else {
             var ani = parseANI(buf);
             self._displayRate = ani.displayRate;
@@ -254,25 +268,35 @@
             self._seq = ani.seq;
             for (var i = 0; i < ani.frames.length; i++) {
               var f = curToFrame(ani.frames[i]);
+              // Fix hotspot for ICO-type frames (ICO has planes/bpp, not hotspot)
+              var frameView = new DataView(ani.frames[i]);
+              if (frameView.getUint16(2, true) !== 2) {
+                var fw = frameView.getUint8(6) || 256;
+                var fh = frameView.getUint8(7) || 256;
+                f.hotX = Math.floor(fw / 2);
+                f.hotY = Math.floor(fh / 2);
+              }
               if (canBlob) {
                 f.blobUrl = URL.createObjectURL(dataUrlToBlob(f.url));
-                // Create .cur blob URL from raw frame data — each .ani frame
-                // is a complete ICO/CUR binary. Firefox handles these natively.
-                f.curBlobUrl = URL.createObjectURL(new Blob([ani.frames[i]], { type: "image/x-icon" }));
+                // Ensure frame is CUR format (type=2) — Firefox requires this
+                // to recognize blob URLs as cursor images.
+                var curBuf = ensureCurFormat(ani.frames[i]);
+                f.curBlobUrl = URL.createObjectURL(new Blob([curBuf], { type: "image/x-icon" }));
               }
               self._frames.push(f);
             }
             self._step = 0;
             self._apply(0);
             self._animate();
-            console.log("CursorManager: .ani loaded, " + self._frames.length + " frames");
+            console.log("CursorManager: .ani loaded, " + self._frames.length + " frames" +
+              ", fallbackCur=" + (self._fallbackCurUrl || "none"));
           }
         })
         .catch(function (e) {
           console.warn("CursorManager: failed to load " + url, e);
-          if (isAni && self._isFirefox && fallbackCurUrl) {
-            console.warn("CursorManager: Firefox ANI load failed, trying static CUR fallback " + fallbackCurUrl);
-            self._setDirectCurUrl(fallbackCurUrl);
+          if (isAni && self._fallbackCurUrl) {
+            console.warn("CursorManager: ANI load failed, trying static CUR fallback " + self._fallbackCurUrl);
+            self._setDirectCurUrl(self._fallbackCurUrl);
           }
           if (location.protocol === "file:")
             console.warn("CursorManager: on file:// protocol, try: python -m http.server");
@@ -285,37 +309,41 @@
       document.documentElement.style.setProperty("cursor", val, "important");
       if (document.body) document.body.style.setProperty("cursor", val, "important");
       // Method 2: <style> element for all descendants
-      this._styleEl.textContent = "* { cursor: " + val + " !important; }";
+      // Also set html/body height — Firefox needs explicit height for cursor
+      // hit-testing when the page has no block-level content (only fixed canvases).
+      this._styleEl.textContent =
+        "html, body { height: 100%; }" +
+        " * { cursor: " + val + " !important; }";
       console.log("CursorManager: CSS cursor set, value length=" + val.length);
     },
 
     /**
-     * Set CSS cursor with .cur-first fallback chain.
-     * Firefox can LOAD PNG data/blob URLs but refuses to DISPLAY them as
-     * cursors, then jumps straight to "auto" instead of trying the next
-     * fallback.  Putting the native .cur URL first fixes this:
-     *   .cur URL/blob (native, no hotspot needed) → PNG blob → PNG data → auto
+     * Set CSS cursor with fallback chain.
+     * Chain order: native .cur URL → CUR blob → PNG blob → PNG data → .cur fallback → auto
+     *
+     * For Firefox .cur files: only the direct .cur URL is needed (native format).
+     * For Firefox .ani frames: CUR blob URL (with ensureCurFormat) is the primary.
      */
     _setCursor: function (frame, curFileUrl) {
       var parts = [];
-      var isFirefoxCurFile = this._isFirefox && !!curFileUrl;
-      var isFirefoxAniFrame = this._isFirefox && !curFileUrl;
 
-      // 1) Direct .cur file URL for static cursor files.
+      // 1) Direct .cur file URL (for static .cur files)
       if (curFileUrl) parts.push("url('" + this._escapeCssUrl(curFileUrl) + "')");
 
-      // 2) .cur blob URL generated from .ani frame data.
-      // In Firefox, CUR blob entries for .ani frames can fail and force a jump to auto,
-      // so we omit them and use PNG entries for animated frames there.
-      if (frame.curBlobUrl && !isFirefoxAniFrame)
+      // 2) CUR blob URL (native cursor format, embedded hotspot)
+      if (frame.curBlobUrl)
         parts.push("url('" + this._escapeCssUrl(frame.curBlobUrl) + "')");
 
-      // 3) PNG fallbacks.
-      // For Firefox direct .cur files, keep chain native-only (avoid mixed-list failure).
-      if (!isFirefoxCurFile) {
+      // 3) PNG fallbacks with explicit hotspot
+      // Skip for Firefox .cur files — native URL alone is sufficient.
+      if (!(this._isFirefox && curFileUrl)) {
         if (frame.blobUrl) parts.push("url('" + this._escapeCssUrl(frame.blobUrl) + "') " + frame.hotX + " " + frame.hotY);
         parts.push("url('" + this._escapeCssUrl(frame.url) + "') " + frame.hotX + " " + frame.hotY);
       }
+
+      // 4) Static .cur fallback for .ani files (e.g. cyan.ani → cyan.cur)
+      if (this._fallbackCurUrl && !curFileUrl)
+        parts.push("url('" + this._escapeCssUrl(this._fallbackCurUrl) + "')");
 
       this._setCursorValue(parts.join(", ") + ", auto");
     },
