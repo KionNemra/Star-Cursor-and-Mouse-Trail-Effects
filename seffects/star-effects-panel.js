@@ -39,6 +39,8 @@
       "  user-select: none; -webkit-user-select: none;",
       "}",
       "#se-gear-btn:hover { transform: rotate(60deg); border-color: #c8b869; box-shadow: 0 2px 20px rgba(200,184,105,0.3); }",
+      "#se-gear-btn.se-gear-off { opacity: 0.2; width: 32px; height: 32px; font-size: 16px; border-color: rgba(200,184,105,0.15); box-shadow: none; }",
+      "#se-gear-btn.se-gear-off:hover { opacity: 0.6; }",
 
       // Backdrop
       "#se-panel-backdrop {",
@@ -179,6 +181,8 @@
       ".se-btn-reset:hover { border-color: #888; color: #ccc; }",
       ".se-btn-primary { background: rgba(200,184,105,0.2); border-color: #c8b869; color: #c8b869; }",
       ".se-btn-primary:hover { background: rgba(200,184,105,0.35); }",
+      ".se-btn-off { background: transparent; border-color: #664; color: #997; }",
+      ".se-btn-off:hover { border-color: #996; color: #cc9; }",
 
       // Disabled state for sections
       ".se-disabled { opacity: 0.4; pointer-events: none; }",
@@ -202,6 +206,7 @@
     gearBtn.id = "se-gear-btn";
     gearBtn.innerHTML = "&#9881;"; // ⚙
     gearBtn.title = "\u9F20\u6807\u7279\u6548\u8BBE\u7F6E";
+    if (cfg._disabled) gearBtn.className = "se-gear-off";
     document.body.appendChild(gearBtn);
 
     // Backdrop
@@ -377,6 +382,7 @@
 
     // Footer
     html.push('<div class="se-footer">');
+    html.push('  <button class="se-btn se-btn-off" id="se-kill">\u5B8C\u5168\u5173\u95ED\u7279\u6548</button>');
     html.push('  <button class="se-btn se-btn-reset" id="se-reset">\u91CD\u7F6E\u9ED8\u8BA4</button>');
     html.push('</div>');
 
@@ -430,8 +436,9 @@
     // Cursor file
     var $cursorFile = panel.querySelector("#se-cursor-file");
 
-    // Reset
+    // Reset / Kill
     var $reset = panel.querySelector("#se-reset");
+    var $kill = panel.querySelector("#se-kill");
 
     // ═══════════════════════════════════════
     //  State & helpers
@@ -486,6 +493,11 @@
       } else {
         $content.classList.add("se-disabled");
       }
+    }
+
+    function updateGearState(disabled) {
+      if (disabled) gearBtn.classList.add("se-gear-off");
+      else gearBtn.classList.remove("se-gear-off");
     }
 
     // Populate panel from settings object
@@ -556,6 +568,7 @@
     $enabled.addEventListener("change", function () {
       live._disabled = !this.checked;
       updateContentState();
+      updateGearState(live._disabled);
       apply();
     });
 
@@ -643,11 +656,20 @@
       apply();
     });
 
+    // "完全关闭特效" button — disable, save, close panel, dim gear
+    $kill.addEventListener("click", function () {
+      live._disabled = true;
+      apply();
+      closePanel();
+      updateGearState(true);
+    });
+
     // Reset button
     $reset.addEventListener("click", function () {
       var defaults = R.getDefaults();
       live = defaults;
       syncUI(live);
+      updateGearState(false);
       apply();
     });
 
