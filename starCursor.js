@@ -165,8 +165,8 @@ class StarCursor {
     var spreadStyle = this.style === "random" ? "bubble" : this.style;
     for (var i = 0; i < this.stars.length; i++) {
       var pt = _randomPointInShape(spreadStyle, this.spread);
-      this.stars[i].offsetX = Math.round(pt.x);
-      this.stars[i].offsetY = Math.round(pt.y);
+      this.stars[i].offsetX = pt.x;
+      this.stars[i].offsetY = pt.y;
       if (this.style === "random") {
         this.stars[i].resolvedStyle = _resolveStyle(this.style);
       }
@@ -188,7 +188,7 @@ class StarCursor {
       var growFactor = 0.05 + Math.random() * 0.25;
       var growInterval = 80 + Math.floor(Math.random() * 120);
       var star = new Star(cx, cy, size, maxSize, Math.min(size, 0.5), growFactor,
-        Math.round(pt.x), Math.round(pt.y), growInterval);
+        pt.x, pt.y, growInterval);
       star.resolvedStyle = _resolveStyle(this.style);
       this.addStar(star);
     }
