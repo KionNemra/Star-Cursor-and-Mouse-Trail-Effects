@@ -50,14 +50,12 @@
       "#se-gear-btn.se-gear-off { opacity: 0.2; width: 32px; height: 32px; font-size: 16px; border-color: rgba(200,184,105,0.15); box-shadow: none; }",
       "#se-gear-btn.se-gear-off:hover { opacity: 0.6; }",
 
-      // Backdrop
+      // Backdrop (transparent — only captures clicks to close panel)
       "#se-panel-backdrop {",
       "  position: fixed; inset: 0; z-index: 999998;",
-      "  background: rgba(0,0,0,0.55);",
-      "  opacity: 0; transition: opacity 0.25s;",
       "  pointer-events: none;",
       "}",
-      "#se-panel-backdrop.se-open { opacity: 1; pointer-events: auto; }",
+      "#se-panel-backdrop.se-open { pointer-events: auto; }",
 
       // Panel
       "#se-panel {",
