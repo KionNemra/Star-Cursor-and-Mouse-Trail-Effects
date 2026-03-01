@@ -70,6 +70,7 @@
   //  Shape helpers
   // ═══════════════════════════════════════════
 
+  var TWO_PI = Math.PI * 2;
   var ALL_SHAPES = ["star", "bubble", "heart", "flower", "flame"];
 
   function resolveStyle(style) {
@@ -209,6 +210,22 @@
     this.canvas.height = window.innerHeight;
   };
 
+  /** Hot-update settings without destroying the instance. */
+  MouseTrail.prototype.applyOptions = function (options) {
+    if (!options) return;
+    if (options.maxSquares != null) this.maxSquares = options.maxSquares;
+    if (options.color != null) this.color = options.color;
+    if (options.colorMode != null) this.colorMode = options.colorMode;
+    if (options.rainbowSpeed != null) this.rainbowSpeed = options.rainbowSpeed;
+    if (options.rainbowSaturation != null) this.rainbowSaturation = options.rainbowSaturation;
+    if (options.rainbowLightness != null) this.rainbowLightness = options.rainbowLightness;
+    if (options.style != null) this.style = options.style;
+    if (options.burstStyle != null) this.burstStyle = options.burstStyle;
+    if (options.sizeScale != null) this.sizeScale = options.sizeScale;
+    if (options.lifetime != null) this.lifetime = options.lifetime;
+    if (options.burstLifetime != null) this.burstLifetime = options.burstLifetime;
+  };
+
   MouseTrail.prototype.addPoint = function (x, y) {
     var dx = x - this.lastX, dy = y - this.lastY;
     if (dx * dx + dy * dy > this.minDistance * this.minDistance) {
@@ -234,15 +251,16 @@
       this._rainbowHue = (this._rainbowHue + this.rainbowSpeed) % 360;
       this.lastX = x;
       this.lastY = y;
+      // Trim excess — update() compacts expired entries, just cap the max here
       if (this.trail.length > this.maxSquares)
-        this.trail.splice(0, this.trail.length - this.maxSquares);
+        this.trail.length = this.maxSquares;
     }
   };
 
   MouseTrail.prototype.addBurst = function (x, y, count) {
     var now = performance.now();
     for (var i = 0; i < count; i++) {
-      var angle = (i / count) * Math.PI * 2 + (Math.random() - 0.5) * 0.5;
+      var angle = (i / count) * TWO_PI + (Math.random() - 0.5) * 0.5;
       var speed = 1.5 + Math.random() * 3;
       var resolved = resolveStyle(this.burstStyle);
       var bVx = Math.cos(angle) * speed;
@@ -274,9 +292,20 @@
     }
     this.trail.length = writeIdx;
 
+    // Idle skip: nothing to draw → clear once then skip future frames
+    if (this.trail.length === 0) {
+      if (this._hadContent) {
+        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        this._hadContent = false;
+      }
+      return;
+    }
+    this._hadContent = true;
+
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
     var isRainbow = this.colorMode === "rainbow";
-    if (!isRainbow) this.ctx.fillStyle = this.color;
+    var ctx = this.ctx;
+    if (!isRainbow) ctx.fillStyle = this.color;
 
     for (var i = 0; i < this.trail.length; i++) {
       var el = this.trail[i];
@@ -294,95 +323,93 @@
 
       var pLifetime = el.lifetime || this.lifetime;
       var alpha = Math.max(0, 1 - (timestamp - el.birthTime) / pLifetime);
-      this.ctx.globalAlpha = alpha;
+      ctx.globalAlpha = alpha;
 
       if (isRainbow)
-        this.ctx.fillStyle = "hsl(" + el.hue + "," + this.rainbowSaturation + "%," + this.rainbowLightness + "%)";
+        ctx.fillStyle = "hsl(" + el.hue + "," + this.rainbowSaturation + "%," + this.rainbowLightness + "%)";
 
       var pStyle = el.shapeStyle || this.style;
       var sz = el.size * this.sizeScale;
 
       if (pStyle === "bubble") {
-        this.ctx.beginPath();
-        this.ctx.arc(el.x, el.y, sz * 4, 0, Math.PI * 2);
-        this.ctx.fill();
-        this.ctx.save();
-        this.ctx.globalAlpha = alpha * 0.4;
-        this.ctx.fillStyle = "#ffffff";
-        this.ctx.beginPath();
-        this.ctx.arc(el.x - sz * 1.2, el.y - sz * 1.2, sz * 1.2, 0, Math.PI * 2);
-        this.ctx.fill();
-        this.ctx.restore();
-        if (isRainbow) this.ctx.fillStyle = "hsl(" + el.hue + "," + this.rainbowSaturation + "%," + this.rainbowLightness + "%)";
-        else this.ctx.fillStyle = this.color;
+        ctx.beginPath();
+        ctx.arc(el.x, el.y, sz * 4, 0, TWO_PI);
+        ctx.fill();
+        ctx.save();
+        ctx.globalAlpha = alpha * 0.4;
+        ctx.fillStyle = "#ffffff";
+        ctx.beginPath();
+        ctx.arc(el.x - sz * 1.2, el.y - sz * 1.2, sz * 1.2, 0, TWO_PI);
+        ctx.fill();
+        ctx.restore();
+        if (isRainbow) ctx.fillStyle = "hsl(" + el.hue + "," + this.rainbowSaturation + "%," + this.rainbowLightness + "%)";
+        else ctx.fillStyle = this.color;
       } else if (pStyle === "heart") {
         var s = sz * 3;
-        this.ctx.save();
-        this.ctx.translate(el.x, el.y);
-        this.ctx.beginPath();
-        this.ctx.moveTo(0, s * 0.3);
-        this.ctx.bezierCurveTo(-s, -s * 0.6, -s * 0.5, -s * 1.2, 0, -s * 0.5);
-        this.ctx.bezierCurveTo(s * 0.5, -s * 1.2, s, -s * 0.6, 0, s * 0.3);
-        this.ctx.closePath();
-        this.ctx.fill();
-        this.ctx.restore();
+        ctx.save();
+        ctx.translate(el.x, el.y);
+        ctx.beginPath();
+        ctx.moveTo(0, s * 0.3);
+        ctx.bezierCurveTo(-s, -s * 0.6, -s * 0.5, -s * 1.2, 0, -s * 0.5);
+        ctx.bezierCurveTo(s * 0.5, -s * 1.2, s, -s * 0.6, 0, s * 0.3);
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
       } else if (pStyle === "flower") {
         var rot = (timestamp - el.birthTime) * 0.003;
         var pl = sz * 3, pw = sz * 1.2;
-        this.ctx.save();
-        this.ctx.translate(el.x, el.y);
-        this.ctx.rotate(rot);
+        ctx.save();
+        ctx.translate(el.x, el.y);
+        ctx.rotate(rot);
         for (var p = 0; p < 5; p++) {
-          this.ctx.save();
-          this.ctx.rotate((p / 5) * Math.PI * 2);
-          this.ctx.beginPath();
-          this.ctx.ellipse(0, -pl * 0.5, pw, pl * 0.5, 0, 0, Math.PI * 2);
-          this.ctx.fill();
-          this.ctx.restore();
+          ctx.rotate(TWO_PI / 5);
+          ctx.beginPath();
+          ctx.ellipse(0, -pl * 0.5, pw, pl * 0.5, 0, 0, TWO_PI);
+          ctx.fill();
         }
-        this.ctx.beginPath();
-        this.ctx.arc(0, 0, sz, 0, Math.PI * 2);
-        this.ctx.save();
-        this.ctx.globalAlpha = alpha * 0.7;
-        this.ctx.fillStyle = "#fff8dc";
-        this.ctx.fill();
-        this.ctx.restore();
-        this.ctx.restore();
+        ctx.beginPath();
+        ctx.arc(0, 0, sz, 0, TWO_PI);
+        var prevAlpha = ctx.globalAlpha;
+        ctx.globalAlpha = alpha * 0.7;
+        ctx.fillStyle = "#fff8dc";
+        ctx.fill();
+        ctx.globalAlpha = prevAlpha;
+        ctx.restore();
       } else if (pStyle === "flame") {
         var age = (timestamp - el.birthTime) / pLifetime;
         var fHue = 60 - age * 60;
         var fLit = 65 - age * 30;
-        this.ctx.fillStyle = "hsl(" + fHue + ",100%," + fLit + "%)";
+        ctx.fillStyle = "hsl(" + fHue + ",100%," + fLit + "%)";
         var fh = sz * 4, fw = sz * 2;
-        this.ctx.save();
-        this.ctx.translate(el.x, el.y);
-        this.ctx.beginPath();
-        this.ctx.moveTo(0, -fh * 0.5);
-        this.ctx.bezierCurveTo(fw, -fh * 0.15, fw * 0.5, fh * 0.4, 0, fh * 0.5);
-        this.ctx.bezierCurveTo(-fw * 0.5, fh * 0.4, -fw, -fh * 0.15, 0, -fh * 0.5);
-        this.ctx.closePath();
-        this.ctx.fill();
-        this.ctx.beginPath();
-        this.ctx.moveTo(0, -fh * 0.3);
-        this.ctx.bezierCurveTo(fw * 0.4, -fh * 0.05, fw * 0.2, fh * 0.25, 0, fh * 0.3);
-        this.ctx.bezierCurveTo(-fw * 0.2, fh * 0.25, -fw * 0.4, -fh * 0.05, 0, -fh * 0.3);
-        this.ctx.closePath();
-        this.ctx.fillStyle = "hsl(" + Math.min(fHue + 15, 60) + ",100%," + Math.min(fLit + 15, 85) + "%)";
-        this.ctx.fill();
-        this.ctx.restore();
-        if (isRainbow) this.ctx.fillStyle = "hsl(" + el.hue + "," + this.rainbowSaturation + "%," + this.rainbowLightness + "%)";
-        else this.ctx.fillStyle = this.color;
+        ctx.save();
+        ctx.translate(el.x, el.y);
+        ctx.beginPath();
+        ctx.moveTo(0, -fh * 0.5);
+        ctx.bezierCurveTo(fw, -fh * 0.15, fw * 0.5, fh * 0.4, 0, fh * 0.5);
+        ctx.bezierCurveTo(-fw * 0.5, fh * 0.4, -fw, -fh * 0.15, 0, -fh * 0.5);
+        ctx.closePath();
+        ctx.fill();
+        ctx.beginPath();
+        ctx.moveTo(0, -fh * 0.3);
+        ctx.bezierCurveTo(fw * 0.4, -fh * 0.05, fw * 0.2, fh * 0.25, 0, fh * 0.3);
+        ctx.bezierCurveTo(-fw * 0.2, fh * 0.25, -fw * 0.4, -fh * 0.05, 0, -fh * 0.3);
+        ctx.closePath();
+        ctx.fillStyle = "hsl(" + Math.min(fHue + 15, 60) + ",100%," + Math.min(fLit + 15, 85) + "%)";
+        ctx.fill();
+        ctx.restore();
+        if (isRainbow) ctx.fillStyle = "hsl(" + el.hue + "," + this.rainbowSaturation + "%," + this.rainbowLightness + "%)";
+        else ctx.fillStyle = this.color;
       } else {
         var shape = this.shape;
-        this.ctx.beginPath();
-        this.ctx.moveTo(el.x + shape[0].x * sz, el.y + shape[0].y * sz);
+        ctx.beginPath();
+        ctx.moveTo(el.x + shape[0].x * sz, el.y + shape[0].y * sz);
         for (var j = 1; j < shape.length; j++)
-          this.ctx.lineTo(el.x + shape[j].x * sz, el.y + shape[j].y * sz);
-        this.ctx.closePath();
-        this.ctx.fill();
+          ctx.lineTo(el.x + shape[j].x * sz, el.y + shape[j].y * sz);
+        ctx.closePath();
+        ctx.fill();
       }
     }
-    this.ctx.globalAlpha = 1;
+    ctx.globalAlpha = 1;
   };
 
   MouseTrail.prototype.destroy = function () {
@@ -431,31 +458,31 @@
     var cy = tempCanvas.height / 2;
 
     tempCtx.clearRect(0, 0, tempCanvas.width, tempCanvas.height);
+    tempCtx.fillStyle = color;
     for (var i = 0; i < GLOW_OFFSETS.length; i++) {
       var c = GLOW_OFFSETS[i];
       tempCtx.beginPath();
-      tempCtx.arc(cx + c.x * s, cy + c.y * s, s * 3, 0, Math.PI * 2);
-      tempCtx.fillStyle = color;
+      tempCtx.arc(cx + c.x * s, cy + c.y * s, s * 3, 0, TWO_PI);
       tempCtx.fill();
     }
 
-    ctx.save();
-    ctx.globalAlpha = 0.1;
+    var prevAlpha = ctx.globalAlpha;
+    ctx.globalAlpha = prevAlpha * 0.1;
     ctx.drawImage(tempCanvas, this.x - cx, this.y - cy);
-    ctx.restore();
+    ctx.globalAlpha = prevAlpha;
 
     if (style === "bubble") {
       ctx.beginPath();
-      ctx.arc(this.x, this.y, s * 4, 0, Math.PI * 2);
+      ctx.arc(this.x, this.y, s * 4, 0, TWO_PI);
       ctx.fillStyle = color;
       ctx.fill();
-      ctx.save();
-      ctx.globalAlpha = ctx.globalAlpha * 0.4;
+      var bubbleAlpha = ctx.globalAlpha;
+      ctx.globalAlpha = bubbleAlpha * 0.4;
       ctx.fillStyle = "#ffffff";
       ctx.beginPath();
-      ctx.arc(this.x - s * 1.2, this.y - s * 1.2, s * 1.2, 0, Math.PI * 2);
+      ctx.arc(this.x - s * 1.2, this.y - s * 1.2, s * 1.2, 0, TWO_PI);
       ctx.fill();
-      ctx.restore();
+      ctx.globalAlpha = bubbleAlpha;
     } else if (style === "heart") {
       var hs = s * 3;
       ctx.save();
@@ -474,20 +501,20 @@
       ctx.save();
       ctx.translate(this.x, this.y);
       ctx.rotate(rot);
+      ctx.fillStyle = color;
       for (var p = 0; p < 5; p++) {
-        ctx.save();
-        ctx.rotate((p / 5) * Math.PI * 2);
+        ctx.rotate(TWO_PI / 5);
         ctx.beginPath();
-        ctx.ellipse(0, -pl * 0.5, pw, pl * 0.5, 0, 0, Math.PI * 2);
-        ctx.fillStyle = color;
+        ctx.ellipse(0, -pl * 0.5, pw, pl * 0.5, 0, 0, TWO_PI);
         ctx.fill();
-        ctx.restore();
       }
       ctx.beginPath();
-      ctx.arc(0, 0, s, 0, Math.PI * 2);
+      ctx.arc(0, 0, s, 0, TWO_PI);
+      var flowerAlpha = ctx.globalAlpha;
+      ctx.globalAlpha = flowerAlpha * 0.7;
       ctx.fillStyle = "#fff8dc";
-      ctx.globalAlpha = ctx.globalAlpha * 0.7;
       ctx.fill();
+      ctx.globalAlpha = flowerAlpha;
       ctx.restore();
     } else if (style === "flame") {
       var fh = s * 4, fw = s * 2;
@@ -589,6 +616,28 @@
 
   StarCursor.prototype.addStar = function (star) { this.stars.push(star); };
 
+  /** Hot-update settings without destroying the instance. */
+  StarCursor.prototype.applyOptions = function (options, count) {
+    if (!options) return;
+    var styleChanged = false;
+    if (options.glowColor != null) this.glowColor = options.glowColor;
+    if (options.starColor != null) this.starColor = options.starColor;
+    if (options.colorMode != null) this.colorMode = options.colorMode;
+    if (options.rainbowSpeed != null) this.rainbowSpeed = options.rainbowSpeed;
+    if (options.rainbowSaturation != null) this.rainbowSaturation = options.rainbowSaturation;
+    if (options.rainbowLightness != null) this.rainbowLightness = options.rainbowLightness;
+    if (options.style != null && options.style !== this.style) { this.style = options.style; styleChanged = true; }
+    if (options.sizeScale != null) this.sizeScale = options.sizeScale;
+    if (options.spread != null) this.spread = options.spread;
+    if (options.wander != null) this.wander = options.wander;
+    // Regenerate stars only if count or style changed
+    if (count != null && (count !== this.stars.length || styleChanged)) {
+      this.generateStars(count);
+    } else if (styleChanged) {
+      this._reshuffleOffsets();
+    }
+  };
+
   StarCursor.prototype._reshuffleOffsets = function () {
     var spreadStyle = this.style === "random" ? "bubble" : this.style;
     for (var i = 0; i < this.stars.length; i++) {
@@ -620,7 +669,6 @@
   };
 
   StarCursor.prototype.update = function (timestamp) {
-    this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
     if (this.mouseStopped) {
       // Re-randomize offsets each time mouse stops (new pattern every hover)
       if (!this._wasStopped) {
@@ -632,6 +680,18 @@
       this._wasStopped = false;
       this.opacity = Math.max(0, this.opacity - this.fadeOutSpeed);
     }
+
+    // Idle skip: nothing visible → clear once then skip future frames
+    if (this.opacity <= 0) {
+      if (this._hadContent) {
+        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        this._hadContent = false;
+      }
+      return;
+    }
+    this._hadContent = true;
+
+    this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
     if (this.opacity > 0) {
       // Wander: particles smoothly drift to new random positions
       if (this.wander && this.mouseStopped) {
@@ -1040,8 +1100,9 @@
 
     // Click burst
     if (cfg.clickBurst) {
+      state._burstCount = cfg.clickBurstCount;
       state.clickHandler = function (e) {
-        state.trail.addBurst(e.clientX, e.clientY, cfg.clickBurstCount);
+        state.trail.addBurst(e.clientX, e.clientY, state._burstCount);
       };
       window.addEventListener("click", state.clickHandler);
     }
@@ -1083,6 +1144,56 @@
   }
 
   // ═══════════════════════════════════════════
+  //  Hot-update path (avoids full teardown for non-structural changes)
+  // ═══════════════════════════════════════════
+
+  /** Check whether a settings change requires full teardown + reinit. */
+  function needsReinit(prev, next) {
+    // Structural changes: disabled state, clickBurst toggle, cursor file
+    if (!!prev._disabled !== !!next._disabled) return true;
+    if (!!prev.clickBurst !== !!next.clickBurst) return true;
+    if ((prev.cursor || "") !== (next.cursor || "")) return true;
+    return false;
+  }
+
+  /** Apply settings in-place to live instances (no DOM churn). */
+  function hotUpdate(cfg) {
+    if (!state.active) return false;
+
+    state.trail.applyOptions({
+      maxSquares: cfg.trailMaxCount,
+      color: cfg.color,
+      colorMode: cfg.colorMode,
+      rainbowSpeed: cfg.rainbowSpeed,
+      rainbowSaturation: cfg.rainbowSaturation,
+      rainbowLightness: cfg.rainbowLightness,
+      style: cfg.trailStyle,
+      burstStyle: cfg.burstStyle || cfg.trailStyle,
+      sizeScale: (cfg.trailSize || 100) / 100,
+      lifetime: cfg.trailLifetime || 1000,
+      burstLifetime: cfg.burstLifetime || 1000
+    });
+
+    state.cursorStars.applyOptions({
+      glowColor: cfg.glowColor,
+      starColor: cfg.color,
+      colorMode: cfg.colorMode,
+      rainbowSpeed: cfg.rainbowSpeed,
+      rainbowSaturation: cfg.rainbowSaturation,
+      rainbowLightness: cfg.rainbowLightness,
+      style: cfg.cursorStyle,
+      sizeScale: (cfg.cursorSize || 100) / 100,
+      spread: cfg.cursorSpread || 20,
+      wander: cfg.cursorWander || false
+    }, cfg.cursorStarCount);
+
+    // Update burst count for click handler
+    if (cfg.clickBurst) state._burstCount = cfg.clickBurstCount;
+
+    return true;
+  }
+
+  // ═══════════════════════════════════════════
   //  Public Runtime API
   // ═══════════════════════════════════════════
 
@@ -1093,12 +1204,22 @@
     /** Default values (copy). */
     getDefaults: function () { return merge({}, DEFAULTS); },
 
-    /** Apply new settings: save to localStorage, restart effects. */
+    /** Apply new settings: hot-update when possible, full reinit only when needed. */
     applySettings: function (settings) {
+      var prev = currentSettings;
       currentSettings = merge({}, DEFAULTS, settings);
       saveSettings(settings);
-      teardown();
-      if (!currentSettings._disabled) init(currentSettings);
+
+      if (needsReinit(prev, currentSettings)) {
+        // Structural change — full teardown required
+        teardown();
+        if (!currentSettings._disabled) init(currentSettings);
+      } else if (state.active) {
+        // Non-structural change — hot-update in place (no DOM churn)
+        hotUpdate(currentSettings);
+      } else if (!currentSettings._disabled) {
+        init(currentSettings);
+      }
     },
 
     /** Destroy all effects (does not change saved settings). */
