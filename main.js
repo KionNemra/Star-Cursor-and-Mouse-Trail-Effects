@@ -46,6 +46,7 @@ var cursor = new StarCursor('curs_canv2', {
   style: config.cursorStyle,
   sizeScale: (config.cursorSize || 100) / 100,
   spread: config.cursorSpread || 20,
+  wander: config.cursorWander || false,
 });
 
 cursor.generateStars(config.cursorStarCount);

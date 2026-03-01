@@ -407,8 +407,8 @@
     this.maxSize = maxSize || 3;
     this.minSize = minSize || 1;
     this.growFactor = growFactor || 0.1;
-    this.offsetX = offsetX || 0;
-    this.offsetY = offsetY || 0;
+    this.offsetX = offsetX != null ? offsetX : 0;
+    this.offsetY = offsetY != null ? offsetY : 0;
     this.growing = true;
     this.growInterval = growInterval || 100;
     this.lastGrowTime = 0;
@@ -593,8 +593,8 @@
     var spreadStyle = this.style === "random" ? "bubble" : this.style;
     for (var i = 0; i < this.stars.length; i++) {
       var pt = randomPointInShape(spreadStyle, this.spread);
-      this.stars[i].offsetX = Math.round(pt.x);
-      this.stars[i].offsetY = Math.round(pt.y);
+      this.stars[i].offsetX = pt.x;
+      this.stars[i].offsetY = pt.y;
       if (this.style === "random") {
         this.stars[i].resolvedStyle = resolveStyle(this.style);
       }
@@ -613,7 +613,7 @@
       var growFactor = 0.05 + Math.random() * 0.25;
       var growInterval = 80 + Math.floor(Math.random() * 120);
       var star = new Star(cx, cy, size, maxSize, Math.min(size, 0.5), growFactor,
-        Math.round(pt.x), Math.round(pt.y), growInterval);
+        pt.x, pt.y, growInterval);
       star.resolvedStyle = resolveStyle(this.style);
       this.addStar(star);
     }
