@@ -93,7 +93,7 @@ function _randomPointInShape(style, spread) {
 class StarCursor {
   constructor(canvas, options = {}) {
     this.canvas = typeof canvas === 'string' ? document.getElementById(canvas) : canvas;
-    this.ctx = this.canvas.getContext('2d');
+    this.ctx = this.canvas.getContext('2d', { desynchronized: true });
 
     // Small fixed-size temp canvas for glow (NOT full-screen)
     this.tempCanvas = document.createElement("canvas");
@@ -157,6 +157,10 @@ class StarCursor {
     this.canvas.style.height = "100%";
     this.canvas.style.pointerEvents = "none";
     this.canvas.style.zIndex = "10";
+    // GPU layer promotion: isolate canvas compositing from heavy page effects
+    this.canvas.style.willChange = "transform";
+    this.canvas.style.transform = "translateZ(0)";
+    this.canvas.style.contain = "strict";
   }
 
   addStar(star) {
