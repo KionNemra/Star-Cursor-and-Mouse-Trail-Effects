@@ -34,30 +34,59 @@ function _pointInPolygon(px, py, poly) {
 }
 
 function _randomPointInShape(style, spread) {
-  var px, py, nx, ny, t;
-  if (style === "bubble" || style === "random" || style === "flower" || style === "flame") {
+  var px, py, t, jitter, r;
+  jitter = Math.random() * 0.15;
+
+  if (style === "random") {
+    // Uniform circular area (no specific shape to recognize)
     var a = Math.random() * Math.PI * 2;
-    var r = spread * Math.sqrt(Math.random());
+    r = spread * Math.sqrt(Math.random());
     return { x: Math.cos(a) * r, y: Math.sin(a) * r };
   }
+
+  if (style === "bubble") {
+    // Circle perimeter
+    t = Math.random() * Math.PI * 2;
+    r = spread * (1 - jitter);
+    return { x: Math.cos(t) * r, y: Math.sin(t) * r };
+  }
+
   if (style === "heart") {
-    for (var n = 0; n < 200; n++) {
-      px = (Math.random() - 0.5) * 2.4 * spread;
-      py = (Math.random() - 0.5) * 2.4 * spread;
-      nx = px / spread; ny = -py / spread;
-      t = nx * nx + ny * ny - 1;
-      if (t * t * t - nx * nx * ny * ny * ny < 0) return { x: px, y: py };
-    }
-    return { x: 0, y: 0 };
+    // Parametric heart curve perimeter
+    t = Math.random() * Math.PI * 2;
+    var st = Math.sin(t);
+    px = 16 * st * st * st;
+    py = -(13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t));
+    var scale = spread / 17;
+    return { x: px * scale * (1 - jitter), y: py * scale * (1 - jitter) };
   }
-  // star
+
+  if (style === "flower") {
+    // 5-petal rose curve perimeter
+    t = Math.random() * Math.PI * 2;
+    r = spread * Math.abs(Math.cos(2.5 * t));
+    if (r < spread * 0.08) r = spread * 0.08;
+    r *= (1 - jitter);
+    return { x: Math.cos(t) * r, y: Math.sin(t) * r };
+  }
+
+  if (style === "flame") {
+    // Teardrop pointing up: narrow tip at top, wider base at bottom
+    t = Math.random() * Math.PI * 2;
+    py = -Math.cos(t) * spread * 0.6;
+    var widthScale = 0.15 + 0.35 * (1 - Math.cos(t)) * 0.5;
+    px = Math.sin(t) * spread * widthScale;
+    return { x: px * (1 - jitter), y: py * (1 - jitter) };
+  }
+
+  // star – distribute along perimeter so shape is recognizable at any spread
   var verts = _starVertices(spread);
-  for (var n = 0; n < 200; n++) {
-    px = (Math.random() - 0.5) * 2 * spread;
-    py = (Math.random() - 0.5) * 2 * spread;
-    if (_pointInPolygon(px, py, verts)) return { x: px, y: py };
-  }
-  return { x: 0, y: 0 };
+  var edgeIndex = Math.floor(Math.random() * verts.length);
+  var nextIndex = (edgeIndex + 1) % verts.length;
+  t = Math.random();
+  px = verts[edgeIndex].x + t * (verts[nextIndex].x - verts[edgeIndex].x);
+  py = verts[edgeIndex].y + t * (verts[nextIndex].y - verts[edgeIndex].y);
+  return { x: px * (1 - jitter), y: py * (1 - jitter) };
 }
 
 class StarCursor {
@@ -109,8 +138,10 @@ class StarCursor {
     this.style = options.style || "star";
     this.sizeScale = options.sizeScale || 1;
     this.spread = options.spread || 20;
+    this.wander = options.wander || false;
 
     this.stars = [];
+    this._wasStopped = false;
   }
 
   resizeCanvas() {
@@ -128,6 +159,18 @@ class StarCursor {
 
   addStar(star) {
     this.stars.push(star);
+  }
+
+  _reshuffleOffsets() {
+    var spreadStyle = this.style === "random" ? "bubble" : this.style;
+    for (var i = 0; i < this.stars.length; i++) {
+      var pt = _randomPointInShape(spreadStyle, this.spread);
+      this.stars[i].offsetX = Math.round(pt.x);
+      this.stars[i].offsetY = Math.round(pt.y);
+      if (this.style === "random") {
+        this.stars[i].resolvedStyle = _resolveStyle(this.style);
+      }
+    }
   }
 
   /** Auto-generate N stars with random positions within shape-defined area. */
@@ -156,12 +199,33 @@ class StarCursor {
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
     if (this.mouseStopped) {
+      // Re-randomize offsets each time mouse stops (new pattern every hover)
+      if (!this._wasStopped) {
+        this._reshuffleOffsets();
+        this._wasStopped = true;
+      }
       this.opacity = Math.min(1, this.opacity + this.fadeInSpeed);
     } else {
+      this._wasStopped = false;
       this.opacity = Math.max(0, this.opacity - this.fadeOutSpeed);
     }
 
     if (this.opacity > 0) {
+      // Wander: particles smoothly drift to new random positions
+      if (this.wander && this.mouseStopped) {
+        var spreadStyle = this.style === "random" ? "bubble" : this.style;
+        for (var i = 0; i < this.stars.length; i++) {
+          var star = this.stars[i];
+          if (!star._wanderTarget || timestamp - (star._lastWanderTime || 0) > (star._wanderInterval || 0)) {
+            var pt = _randomPointInShape(spreadStyle, this.spread);
+            star._wanderTarget = { x: pt.x, y: pt.y };
+            star._lastWanderTime = timestamp;
+            star._wanderInterval = 800 + Math.random() * 2000;
+          }
+          star.offsetX += (star._wanderTarget.x - star.offsetX) * 0.03;
+          star.offsetY += (star._wanderTarget.y - star.offsetY) * 0.03;
+        }
+      }
       for (var i = 0; i < this.stars.length; i++) {
         this.stars[i].update(this.mouseX, this.mouseY, timestamp);
       }
