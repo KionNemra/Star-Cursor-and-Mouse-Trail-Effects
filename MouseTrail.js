@@ -5,7 +5,7 @@ class MouseTrail {
     options = {},
   shape = [{x:0,y:-4},{x:1,y:-1},{x:4,y:0},{x:1,y:1},{x:0,y:4},{x:-1,y:1},{x:-4,y:0},{x:-1,y:-1}]) {
     this.canvas = document.getElementById(canvasId);
-    this.ctx = this.canvas.getContext('2d');
+    this.ctx = this.canvas.getContext('2d', { desynchronized: true });
     this.shape = shape;
     this.style = options.style || "star";
     this.burstStyle = options.burstStyle || this.style;
@@ -47,6 +47,10 @@ class MouseTrail {
     this.canvas.style.height = "100%";
     this.canvas.style.pointerEvents = "none";
     this.canvas.style.zIndex = "10";
+    // GPU layer promotion: isolate canvas compositing from heavy page effects
+    this.canvas.style.willChange = "transform";
+    this.canvas.style.transform = "translateZ(0)";
+    this.canvas.style.contain = "strict";
   }
 
   resizeCanvas() {

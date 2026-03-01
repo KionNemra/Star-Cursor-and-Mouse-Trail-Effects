@@ -164,7 +164,7 @@
     ];
     options = options || {};
     this.canvas = typeof canvas === "string" ? document.getElementById(canvas) : canvas;
-    this.ctx = this.canvas.getContext("2d");
+    this.ctx = this.canvas.getContext("2d", { desynchronized: true });
     this.shape = shape;
     this.style = options.style || "star";
     this.burstStyle = options.burstStyle || this.style;
@@ -203,6 +203,11 @@
     s.height = "100%";
     s.pointerEvents = "none";
     s.zIndex = "10";
+    // GPU layer promotion: isolate canvas compositing from heavy page effects
+    // (backdrop-filter, large backgrounds, etc.)
+    s.willChange = "transform";
+    s.transform = "translateZ(0)";
+    s.contain = "strict";
   };
 
   MouseTrail.prototype.resizeCanvas = function () {
@@ -551,7 +556,7 @@
   function StarCursor(canvas, options) {
     options = options || {};
     this.canvas = typeof canvas === "string" ? document.getElementById(canvas) : canvas;
-    this.ctx = this.canvas.getContext("2d");
+    this.ctx = this.canvas.getContext("2d", { desynchronized: true });
 
     this.tempCanvas = document.createElement("canvas");
     this.tempCanvas.width = 64;
@@ -607,6 +612,10 @@
     s.height = "100%";
     s.pointerEvents = "none";
     s.zIndex = "10";
+    // GPU layer promotion: isolate canvas compositing from heavy page effects
+    s.willChange = "transform";
+    s.transform = "translateZ(0)";
+    s.contain = "strict";
   };
 
   StarCursor.prototype.resizeCanvas = function () {
