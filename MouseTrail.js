@@ -1,4 +1,5 @@
 const _MT_TWO_PI = Math.PI * 2;
+const _MT_FADE_OUT_MS = 200; // soft-expire fade duration for over-limit particles
 
 class MouseTrail {
   constructor(canvasId,
@@ -84,9 +85,22 @@ class MouseTrail {
       this._rainbowHue = (this._rainbowHue + this.rainbowSpeed) % 360;
       this.lastX = x;
       this.lastY = y;
-      // Trim excess — drop oldest particles (front) so newest ones near cursor survive
-      if (this.trail.length > this.maxSquares)
-        this.trail.splice(0, this.trail.length - this.maxSquares);
+      // Soft-expire excess: fade out oldest particles instead of abrupt removal
+      if (this.trail.length > this.maxSquares) {
+        const excess = this.trail.length - this.maxSquares;
+        for (let k = 0; k < excess; k++) {
+          const p = this.trail[k];
+          if (!p.dying) {
+            const age = now - p.birthTime;
+            const pLt = p.lifetime || this.lifetime;
+            p.dyingAlpha = Math.max(0, 1 - age / pLt);
+            p.dying = now;
+          }
+        }
+        // Hard safety cap to prevent unbounded array growth
+        if (this.trail.length > this.maxSquares * 3)
+          this.trail.splice(0, this.trail.length - this.maxSquares * 3);
+      }
     }
   }
 
@@ -121,11 +135,14 @@ class MouseTrail {
 
   // Called externally from a shared animation loop (no own rAF)
   update(timestamp) {
-    // In-place removal of expired elements (avoids .filter() allocating new array)
+    // In-place removal of expired and fully-faded elements
     let writeIdx = 0;
     for (let i = 0; i < this.trail.length; i++) {
-      if (timestamp - this.trail[i].birthTime < (this.trail[i].lifetime || this.lifetime)) {
-        this.trail[writeIdx++] = this.trail[i];
+      const el = this.trail[i];
+      const expired = timestamp - el.birthTime >= (el.lifetime || this.lifetime);
+      const fadedOut = el.dying && timestamp - el.dying >= _MT_FADE_OUT_MS;
+      if (!expired && !fadedOut) {
+        this.trail[writeIdx++] = el;
       }
     }
     this.trail.length = writeIdx;
@@ -161,7 +178,13 @@ class MouseTrail {
       }
 
       const pLifetime = el.lifetime || this.lifetime;
-      const alpha = Math.max(0, 1 - (timestamp - el.birthTime) / pLifetime);
+      let alpha;
+      if (el.dying) {
+        const fadeProgress = Math.min(1, (timestamp - el.dying) / _MT_FADE_OUT_MS);
+        alpha = el.dyingAlpha * (1 - fadeProgress);
+      } else {
+        alpha = Math.max(0, 1 - (timestamp - el.birthTime) / pLifetime);
+      }
       ctx.globalAlpha = alpha;
 
       if (isRainbow) {
