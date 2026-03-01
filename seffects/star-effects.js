@@ -71,6 +71,7 @@
   // ═══════════════════════════════════════════
 
   var TWO_PI = Math.PI * 2;
+  var FADE_OUT_MS = 200; // soft-expire fade duration for over-limit particles
   var ALL_SHAPES = ["star", "bubble", "heart", "flower", "flame"];
 
   function resolveStyle(style) {
@@ -256,9 +257,22 @@
       this._rainbowHue = (this._rainbowHue + this.rainbowSpeed) % 360;
       this.lastX = x;
       this.lastY = y;
-      // Trim excess — drop oldest particles (front) so newest ones near cursor survive
-      if (this.trail.length > this.maxSquares)
-        this.trail.splice(0, this.trail.length - this.maxSquares);
+      // Soft-expire excess: fade out oldest particles instead of abrupt removal
+      if (this.trail.length > this.maxSquares) {
+        var excess = this.trail.length - this.maxSquares;
+        for (var k = 0; k < excess; k++) {
+          var p = this.trail[k];
+          if (!p.dying) {
+            var age = now - p.birthTime;
+            var pLt = p.lifetime || this.lifetime;
+            p.dyingAlpha = Math.max(0, 1 - age / pLt);
+            p.dying = now;
+          }
+        }
+        // Hard safety cap to prevent unbounded array growth
+        if (this.trail.length > this.maxSquares * 3)
+          this.trail.splice(0, this.trail.length - this.maxSquares * 3);
+      }
     }
   };
 
@@ -290,10 +304,15 @@
   };
 
   MouseTrail.prototype.update = function (timestamp) {
+    // In-place removal of expired and fully-faded elements
     var writeIdx = 0;
     for (var i = 0; i < this.trail.length; i++) {
-      if (timestamp - this.trail[i].birthTime < (this.trail[i].lifetime || this.lifetime))
-        this.trail[writeIdx++] = this.trail[i];
+      var el = this.trail[i];
+      var expired = timestamp - el.birthTime >= (el.lifetime || this.lifetime);
+      var fadedOut = el.dying && timestamp - el.dying >= FADE_OUT_MS;
+      if (!expired && !fadedOut) {
+        this.trail[writeIdx++] = el;
+      }
     }
     this.trail.length = writeIdx;
 
@@ -327,7 +346,13 @@
       }
 
       var pLifetime = el.lifetime || this.lifetime;
-      var alpha = Math.max(0, 1 - (timestamp - el.birthTime) / pLifetime);
+      var alpha;
+      if (el.dying) {
+        var fadeProgress = Math.min(1, (timestamp - el.dying) / FADE_OUT_MS);
+        alpha = el.dyingAlpha * (1 - fadeProgress);
+      } else {
+        alpha = Math.max(0, 1 - (timestamp - el.birthTime) / pLifetime);
+      }
       ctx.globalAlpha = alpha;
 
       if (isRainbow)
