@@ -256,9 +256,9 @@
       this._rainbowHue = (this._rainbowHue + this.rainbowSpeed) % 360;
       this.lastX = x;
       this.lastY = y;
-      // Trim excess — update() compacts expired entries, just cap the max here
+      // Trim excess — drop oldest particles (front) so newest ones near cursor survive
       if (this.trail.length > this.maxSquares)
-        this.trail.length = this.maxSquares;
+        this.trail.splice(0, this.trail.length - this.maxSquares);
     }
   };
 
