@@ -39,10 +39,9 @@
       "#se-gear-btn {",
       "  position: fixed; bottom: 24px; right: 24px; z-index: 999999;",
       "  width: 44px; height: 44px; border-radius: 50%;",
-      "  background: rgba(30,30,40,0.85); border: 1px solid rgba(200,184,105,0.4);",
+      "  background: rgba(30,30,40,0.92); border: 1px solid rgba(200,184,105,0.4);",
       "  color: #c8b869; font-size: 22px; cursor: pointer;",
       "  display: flex; align-items: center; justify-content: center;",
-      "  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);",
       "  transition: transform 0.3s, border-color 0.3s, box-shadow 0.3s;",
       "  box-shadow: 0 2px 12px rgba(0,0,0,0.4);",
       "  user-select: none; -webkit-user-select: none;",
@@ -51,15 +50,12 @@
       "#se-gear-btn.se-gear-off { opacity: 0.2; width: 32px; height: 32px; font-size: 16px; border-color: rgba(200,184,105,0.15); box-shadow: none; }",
       "#se-gear-btn.se-gear-off:hover { opacity: 0.6; }",
 
-      // Backdrop
+      // Backdrop (transparent — only captures clicks to close panel)
       "#se-panel-backdrop {",
       "  position: fixed; inset: 0; z-index: 999998;",
-      "  background: rgba(0,0,0,0.45);",
-      "  backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px);",
-      "  opacity: 0; transition: opacity 0.25s;",
       "  pointer-events: none;",
       "}",
-      "#se-panel-backdrop.se-open { opacity: 1; pointer-events: auto; }",
+      "#se-panel-backdrop.se-open { pointer-events: auto; }",
 
       // Panel
       "#se-panel {",

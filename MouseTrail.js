@@ -1,3 +1,5 @@
+const _MT_TWO_PI = Math.PI * 2;
+
 class MouseTrail {
   constructor(canvasId,
     options = {},
@@ -21,6 +23,7 @@ class MouseTrail {
     this.minSize = options.minSize || 0.3;
     this.maxSize = options.maxSize || 1.5;
     this.color = options.color || "#c8b869";
+    this._hadContent = false;
 
     // Rainbow mode
     this.colorMode = options.colorMode || "fixed";
@@ -77,16 +80,16 @@ class MouseTrail {
       this._rainbowHue = (this._rainbowHue + this.rainbowSpeed) % 360;
       this.lastX = x;
       this.lastY = y;
-
+      // Trim excess — update() compacts expired entries, just cap the max here
       if (this.trail.length > this.maxSquares)
-        this.trail.splice(0, this.trail.length - this.maxSquares);
+        this.trail.length = this.maxSquares;
     }
   }
 
   addBurst(x, y, count) {
     const now = performance.now();
     for (let i = 0; i < count; i++) {
-      const angle = (i / count) * Math.PI * 2 + (Math.random() - 0.5) * 0.5;
+      const angle = (i / count) * _MT_TWO_PI + (Math.random() - 0.5) * 0.5;
       const speed = 1.5 + Math.random() * 3;
       const resolved = this._resolveStyle(this.burstStyle);
       let bVx = Math.cos(angle) * speed;
@@ -123,10 +126,21 @@ class MouseTrail {
     }
     this.trail.length = writeIdx;
 
+    // Idle skip: nothing to draw → clear once then skip future frames
+    if (this.trail.length === 0) {
+      if (this._hadContent) {
+        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        this._hadContent = false;
+      }
+      return;
+    }
+    this._hadContent = true;
+
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
     const isRainbow = this.colorMode === "rainbow";
-    if (!isRainbow) this.ctx.fillStyle = this.color;
+    const ctx = this.ctx;
+    if (!isRainbow) ctx.fillStyle = this.color;
 
     for (let i = 0; i < this.trail.length; i++) {
       const el = this.trail[i];
@@ -144,96 +158,93 @@ class MouseTrail {
 
       const pLifetime = el.lifetime || this.lifetime;
       const alpha = Math.max(0, 1 - (timestamp - el.birthTime) / pLifetime);
-      this.ctx.globalAlpha = alpha;
+      ctx.globalAlpha = alpha;
 
       if (isRainbow) {
-        this.ctx.fillStyle = "hsl(" + el.hue + "," + this.rainbowSaturation + "%," + this.rainbowLightness + "%)";
+        ctx.fillStyle = "hsl(" + el.hue + "," + this.rainbowSaturation + "%," + this.rainbowLightness + "%)";
       }
 
       const pStyle = el.shapeStyle || this.style;
       const sz = el.size * this.sizeScale;
 
       if (pStyle === "bubble") {
-        this.ctx.beginPath();
-        this.ctx.arc(el.x, el.y, sz * 4, 0, Math.PI * 2);
-        this.ctx.fill();
-        // highlight for glossy bubble look
-        this.ctx.save();
-        this.ctx.globalAlpha = alpha * 0.4;
-        this.ctx.fillStyle = "#ffffff";
-        this.ctx.beginPath();
-        this.ctx.arc(el.x - sz * 1.2, el.y - sz * 1.2, sz * 1.2, 0, Math.PI * 2);
-        this.ctx.fill();
-        this.ctx.restore();
-        if (isRainbow) this.ctx.fillStyle = "hsl(" + el.hue + "," + this.rainbowSaturation + "%," + this.rainbowLightness + "%)";
-        else this.ctx.fillStyle = this.color;
+        ctx.beginPath();
+        ctx.arc(el.x, el.y, sz * 4, 0, _MT_TWO_PI);
+        ctx.fill();
+        ctx.save();
+        ctx.globalAlpha = alpha * 0.4;
+        ctx.fillStyle = "#ffffff";
+        ctx.beginPath();
+        ctx.arc(el.x - sz * 1.2, el.y - sz * 1.2, sz * 1.2, 0, _MT_TWO_PI);
+        ctx.fill();
+        ctx.restore();
+        if (isRainbow) ctx.fillStyle = "hsl(" + el.hue + "," + this.rainbowSaturation + "%," + this.rainbowLightness + "%)";
+        else ctx.fillStyle = this.color;
       } else if (pStyle === "heart") {
         var s = sz * 3;
-        this.ctx.save();
-        this.ctx.translate(el.x, el.y);
-        this.ctx.beginPath();
-        this.ctx.moveTo(0, s * 0.3);
-        this.ctx.bezierCurveTo(-s, -s * 0.6, -s * 0.5, -s * 1.2, 0, -s * 0.5);
-        this.ctx.bezierCurveTo(s * 0.5, -s * 1.2, s, -s * 0.6, 0, s * 0.3);
-        this.ctx.closePath();
-        this.ctx.fill();
-        this.ctx.restore();
+        ctx.save();
+        ctx.translate(el.x, el.y);
+        ctx.beginPath();
+        ctx.moveTo(0, s * 0.3);
+        ctx.bezierCurveTo(-s, -s * 0.6, -s * 0.5, -s * 1.2, 0, -s * 0.5);
+        ctx.bezierCurveTo(s * 0.5, -s * 1.2, s, -s * 0.6, 0, s * 0.3);
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
       } else if (pStyle === "flower") {
         var rot = (timestamp - el.birthTime) * 0.003;
         var pl = sz * 3, pw = sz * 1.2;
-        this.ctx.save();
-        this.ctx.translate(el.x, el.y);
-        this.ctx.rotate(rot);
+        ctx.save();
+        ctx.translate(el.x, el.y);
+        ctx.rotate(rot);
         for (var p = 0; p < 5; p++) {
-          this.ctx.save();
-          this.ctx.rotate((p / 5) * Math.PI * 2);
-          this.ctx.beginPath();
-          this.ctx.ellipse(0, -pl * 0.5, pw, pl * 0.5, 0, 0, Math.PI * 2);
-          this.ctx.fill();
-          this.ctx.restore();
+          ctx.rotate(_MT_TWO_PI / 5);
+          ctx.beginPath();
+          ctx.ellipse(0, -pl * 0.5, pw, pl * 0.5, 0, 0, _MT_TWO_PI);
+          ctx.fill();
         }
-        this.ctx.beginPath();
-        this.ctx.arc(0, 0, sz, 0, Math.PI * 2);
-        this.ctx.save();
-        this.ctx.globalAlpha = alpha * 0.7;
-        this.ctx.fillStyle = "#fff8dc";
-        this.ctx.fill();
-        this.ctx.restore();
-        this.ctx.restore();
+        ctx.beginPath();
+        ctx.arc(0, 0, sz, 0, _MT_TWO_PI);
+        var prevAlpha = ctx.globalAlpha;
+        ctx.globalAlpha = alpha * 0.7;
+        ctx.fillStyle = "#fff8dc";
+        ctx.fill();
+        ctx.globalAlpha = prevAlpha;
+        ctx.restore();
       } else if (pStyle === "flame") {
         var age = (timestamp - el.birthTime) / pLifetime;
         var fHue = 60 - age * 60;
         var fLit = 65 - age * 30;
-        this.ctx.fillStyle = "hsl(" + fHue + ",100%," + fLit + "%)";
+        ctx.fillStyle = "hsl(" + fHue + ",100%," + fLit + "%)";
         var fh = sz * 4, fw = sz * 2;
-        this.ctx.save();
-        this.ctx.translate(el.x, el.y);
-        this.ctx.beginPath();
-        this.ctx.moveTo(0, -fh * 0.5);
-        this.ctx.bezierCurveTo(fw, -fh * 0.15, fw * 0.5, fh * 0.4, 0, fh * 0.5);
-        this.ctx.bezierCurveTo(-fw * 0.5, fh * 0.4, -fw, -fh * 0.15, 0, -fh * 0.5);
-        this.ctx.closePath();
-        this.ctx.fill();
-        this.ctx.beginPath();
-        this.ctx.moveTo(0, -fh * 0.3);
-        this.ctx.bezierCurveTo(fw * 0.4, -fh * 0.05, fw * 0.2, fh * 0.25, 0, fh * 0.3);
-        this.ctx.bezierCurveTo(-fw * 0.2, fh * 0.25, -fw * 0.4, -fh * 0.05, 0, -fh * 0.3);
-        this.ctx.closePath();
-        this.ctx.fillStyle = "hsl(" + Math.min(fHue + 15, 60) + ",100%," + Math.min(fLit + 15, 85) + "%)";
-        this.ctx.fill();
-        this.ctx.restore();
-        if (isRainbow) this.ctx.fillStyle = "hsl(" + el.hue + "," + this.rainbowSaturation + "%," + this.rainbowLightness + "%)";
-        else this.ctx.fillStyle = this.color;
+        ctx.save();
+        ctx.translate(el.x, el.y);
+        ctx.beginPath();
+        ctx.moveTo(0, -fh * 0.5);
+        ctx.bezierCurveTo(fw, -fh * 0.15, fw * 0.5, fh * 0.4, 0, fh * 0.5);
+        ctx.bezierCurveTo(-fw * 0.5, fh * 0.4, -fw, -fh * 0.15, 0, -fh * 0.5);
+        ctx.closePath();
+        ctx.fill();
+        ctx.beginPath();
+        ctx.moveTo(0, -fh * 0.3);
+        ctx.bezierCurveTo(fw * 0.4, -fh * 0.05, fw * 0.2, fh * 0.25, 0, fh * 0.3);
+        ctx.bezierCurveTo(-fw * 0.2, fh * 0.25, -fw * 0.4, -fh * 0.05, 0, -fh * 0.3);
+        ctx.closePath();
+        ctx.fillStyle = "hsl(" + Math.min(fHue + 15, 60) + ",100%," + Math.min(fLit + 15, 85) + "%)";
+        ctx.fill();
+        ctx.restore();
+        if (isRainbow) ctx.fillStyle = "hsl(" + el.hue + "," + this.rainbowSaturation + "%," + this.rainbowLightness + "%)";
+        else ctx.fillStyle = this.color;
       } else {
-        this.ctx.beginPath();
-        this.ctx.moveTo(el.x + this.shape[0].x * sz, el.y + this.shape[0].y * sz);
+        ctx.beginPath();
+        ctx.moveTo(el.x + this.shape[0].x * sz, el.y + this.shape[0].y * sz);
         for (let j = 1; j < this.shape.length; j++) {
-          this.ctx.lineTo(el.x + this.shape[j].x * sz, el.y + this.shape[j].y * sz);
+          ctx.lineTo(el.x + this.shape[j].x * sz, el.y + this.shape[j].y * sz);
         }
-        this.ctx.closePath();
-        this.ctx.fill();
+        ctx.closePath();
+        ctx.fill();
       }
     }
-    this.ctx.globalAlpha = 1;
+    ctx.globalAlpha = 1;
   }
 }

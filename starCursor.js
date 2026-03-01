@@ -6,6 +6,7 @@ const STAR_POINTS = [
   {x: 0, y: -4}, {x: 1, y: -1}, {x: 4, y: 0}, {x: 1, y: 1},
   {x: 0, y: 4}, {x: -1, y: 1}, {x: -4, y: 0}, {x: -1, y: -1},
 ];
+const _SC_TWO_PI = Math.PI * 2;
 
 const ALL_SHAPES = ["star", "bubble", "heart", "flower", "flame"];
 
@@ -142,6 +143,7 @@ class StarCursor {
 
     this.stars = [];
     this._wasStopped = false;
+    this._hadContent = false;
   }
 
   resizeCanvas() {
@@ -196,8 +198,6 @@ class StarCursor {
 
   // Called externally from a shared animation loop (no own rAF)
   update(timestamp) {
-    this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-
     if (this.mouseStopped) {
       // Re-randomize offsets each time mouse stops (new pattern every hover)
       if (!this._wasStopped) {
@@ -210,6 +210,17 @@ class StarCursor {
       this.opacity = Math.max(0, this.opacity - this.fadeOutSpeed);
     }
 
+    // Idle skip: nothing visible → clear once then skip future frames
+    if (this.opacity <= 0) {
+      if (this._hadContent) {
+        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        this._hadContent = false;
+      }
+      return;
+    }
+    this._hadContent = true;
+
+    this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
     if (this.opacity > 0) {
       // Wander: particles smoothly drift to new random positions
       if (this.wander && this.mouseStopped) {
@@ -291,34 +302,33 @@ class Star {
 
     // Draw glow on small local temp canvas (64x64 instead of full-screen)
     tempCtx.clearRect(0, 0, tempCanvas.width, tempCanvas.height);
+    tempCtx.fillStyle = color;
     for (let i = 0; i < GLOW_OFFSETS.length; i++) {
       const c = GLOW_OFFSETS[i];
       tempCtx.beginPath();
-      tempCtx.arc(cx + c.x * s, cy + c.y * s, s * 3, 0, Math.PI * 2);
-      tempCtx.fillStyle = color;
+      tempCtx.arc(cx + c.x * s, cy + c.y * s, s * 3, 0, _SC_TWO_PI);
       tempCtx.fill();
     }
 
     // Blit small glow canvas to main canvas at star position
-    ctx.save();
-    ctx.globalAlpha = 0.1;
+    var prevAlpha = ctx.globalAlpha;
+    ctx.globalAlpha = prevAlpha * 0.1;
     ctx.drawImage(tempCanvas, this.x - cx, this.y - cy);
-    ctx.restore();
+    ctx.globalAlpha = prevAlpha;
 
     // Draw shape based on style
     if (style === "bubble") {
       ctx.beginPath();
-      ctx.arc(this.x, this.y, s * 4, 0, Math.PI * 2);
+      ctx.arc(this.x, this.y, s * 4, 0, _SC_TWO_PI);
       ctx.fillStyle = color;
       ctx.fill();
-      // glossy highlight
-      ctx.save();
-      ctx.globalAlpha = ctx.globalAlpha * 0.4;
+      var bubbleAlpha = ctx.globalAlpha;
+      ctx.globalAlpha = bubbleAlpha * 0.4;
       ctx.fillStyle = "#ffffff";
       ctx.beginPath();
-      ctx.arc(this.x - s * 1.2, this.y - s * 1.2, s * 1.2, 0, Math.PI * 2);
+      ctx.arc(this.x - s * 1.2, this.y - s * 1.2, s * 1.2, 0, _SC_TWO_PI);
       ctx.fill();
-      ctx.restore();
+      ctx.globalAlpha = bubbleAlpha;
     } else if (style === "heart") {
       var hs = s * 3;
       ctx.save();
@@ -337,20 +347,20 @@ class Star {
       ctx.save();
       ctx.translate(this.x, this.y);
       ctx.rotate(rot);
+      ctx.fillStyle = color;
       for (var p = 0; p < 5; p++) {
-        ctx.save();
-        ctx.rotate((p / 5) * Math.PI * 2);
+        ctx.rotate(_SC_TWO_PI / 5);
         ctx.beginPath();
-        ctx.ellipse(0, -pl * 0.5, pw, pl * 0.5, 0, 0, Math.PI * 2);
-        ctx.fillStyle = color;
+        ctx.ellipse(0, -pl * 0.5, pw, pl * 0.5, 0, 0, _SC_TWO_PI);
         ctx.fill();
-        ctx.restore();
       }
       ctx.beginPath();
-      ctx.arc(0, 0, s, 0, Math.PI * 2);
+      ctx.arc(0, 0, s, 0, _SC_TWO_PI);
+      var flowerAlpha = ctx.globalAlpha;
+      ctx.globalAlpha = flowerAlpha * 0.7;
       ctx.fillStyle = "#fff8dc";
-      ctx.globalAlpha = ctx.globalAlpha * 0.7;
       ctx.fill();
+      ctx.globalAlpha = flowerAlpha;
       ctx.restore();
     } else if (style === "flame") {
       var fh = s * 4, fw = s * 2;
